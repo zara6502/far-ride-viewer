@@ -1,6 +1,9 @@
+LIBRARY FarRideViewer
+
 EXPORTS
- GetGlobalInfoW
- SetStartupInfoW
- GetPluginInfoW
- OpenW
- ProcessConsoleInputW
+    GetGlobalInfoW
+    SetStartupInfoW
+    GetPluginInfoW
+    OpenW
+    ProcessConsoleInputW
+    ExitFARW
