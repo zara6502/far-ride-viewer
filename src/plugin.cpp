@@ -2,12 +2,15 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cwchar>
+#include <cwctype>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <iterator>
 #include "plugin.hpp"
 #include "ride_codec_api.h"
+extern "C" IMAGE_DOS_HEADER __ImageBase;
 static PluginStartupInfo g_far{};
 static const GUID kPluginGuid={0x9bba2c10,0x2f13,0x4c41,{0x9a,0x77,0x52,0x49,0x44,0x45,0x56,0x31}};
 static const GUID kMenuGuid={0x9bba2c11,0x2f13,0x4c41,{0x9a,0x77,0x52,0x49,0x44,0x45,0x56,0x31}};
