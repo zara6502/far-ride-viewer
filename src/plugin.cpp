@@ -9,7 +9,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iterator>
-using std::string;
+using string = std::wstring;
 #include "plugin.hpp"
 #include "ride_codec_api.h"
 extern "C" IMAGE_DOS_HEADER __ImageBase;
