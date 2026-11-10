@@ -26,3 +26,6 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: cmake --build build
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure
