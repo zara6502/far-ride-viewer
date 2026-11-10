@@ -1,32 +1,100 @@
-# FarRideViewer
+# Far Ride Viewer
 
-Independent Far Manager image viewer with dynamically loaded decoder modules.
+Модульный плагин просмотра изображений для Far Manager 3.x.
 
-The host uses the stable C ABI in `include/ride_codec_api.h`. Codec DLLs are discovered in the sibling `Codecs` directory. The first module is standard QOI, implemented independently in `codecs/qoi/qoi_codec.cpp`.
+Основой окна просмотра, взаимодействия с Far Manager, асинхронной загрузки и управления изображением служит проверенная реализация из проекта [FarQoiViewer](https://github.com/zara6502/far-qoi-viewer). Декодирование вынесено во внешние DLL-модули через стабильный C ABI из `include/ride_codec_api.h`.
 
-## Layout
+## Возможности
 
+- Перехват `F3` по сигнатуре содержимого, а не по расширению файла.
+- Независимые кодеки в DLL, расположенных в каталоге `Codecs` рядом с `FarRideViewer.dll`.
+- Первый модуль `qoi.dll`: стандартный QOI и QOIMT с независимо декодируемыми полосами и многопоточной распаковкой.
+- Чтение файлов и декодирование в фоновом потоке.
+- Сохранение пропорций изображения.
+- Режимы вписывания в окно и 1:1.
+- Масштабирование колёсиком мыши и клавишами `+` / `-`.
+- Панорамирование стрелками клавиатуры.
+- Прозрачность RGBA с корректным альфа-композитингом поверх фона.
+- Выбор фона: шахматка, чёрный или белый.
+- Диагностика ошибок чтения, декодирования и структуры результата кодека.
+- Одновременно поддерживается одно окно просмотра; повторный вызов переводит его на передний план.
+- Файлы, для которых нет подходящего кодека, остаются в обработке Far Manager.
+
+## Управление
+
+| Клавиша / действие | Результат |
+|---|---|
+| `0` | Вписать изображение в окно |
+| `1` | Масштаб 100% (1:1) |
+| `+` / `-` | Увеличить / уменьшить масштаб |
+| Колёсико мыши | Изменить масштаб |
+| Стрелки | Переместить изображение |
+| `Home` | Центрировать изображение |
+| `Space` / левая кнопка мыши | Переключить Fit / zoom |
+| `Esc` | Закрыть окно |
+| `w` | Белый фон |
+| `b` | Чёрный фон |
+| `c` | Шахматный фон |
+
+## Команда Far
+
+Префикс плагина — `ride:`:
+
+```text
+ride: C:\\path\\to\\image.qoi
+ride: "C:\\path with spaces\\image.qoi"
 ```
-FarRideViewer.dll
-Codecs/
-  qoi.dll
+
+Также можно выбрать поддерживаемый файл в панели Far и нажать `F3`.
+
+## Сборка в MSYS2 UCRT64
+
+Требуются MinGW-w64 GCC, CMake 3.20+, Ninja, Git и исходники Far Manager с `far/plugin.hpp`.
+
+Если каталоги расположены рядом:
+
+```bash
+git clone --depth 1 https://github.com/FarGroup/FarManager.git ../FarManager
+
+cmake -S . -B build -G Ninja \\
+  -DCMAKE_BUILD_TYPE=Release \\
+  -DFAR_SOURCE_DIR="$PWD/../FarManager"
+
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-## Build (MSYS2 UCRT64)
+Ожидаемые файлы:
 
-Clone Far Manager to obtain `far/plugin.hpp`, then:
-
-```sh
-cmake -S . -B build -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DFAR_SOURCE_DIR="C:/src/FarManager"
-cmake --build build --parallel
+```text
+build/
+|-- FarRideViewer.dll
+\`-- Codecs/
+    |-- qoi.dll
+    \`-- qoi_codec_test.exe
 ```
 
-Install `build/FarRideViewer.dll` in a Far plugin directory and `build/Codecs/qoi.dll` in its `Codecs` subdirectory. Use `ride: path\\to\\image.qoi` or select an image and press F3.
+## Установка
 
-## Decoder ABI
+Скопируй DLL с сохранением структуры:
 
-Modules export `RideCodecGetInfo`, `RideCodecProbe`, `RideCodecDecode`, and `RideCodecFreeImage`. API version 1 returns top-down RGBA8 pixels. Memory is released by the allocating module. The host rejects modules with missing entry points or incompatible API versions.
+```text
+Plugins/
+\`-- FarRideViewer/
+    |-- FarRideViewer.dll
+    \`-- Codecs/
+        \`-- qoi.dll
+```
 
-## Status
+Перезапусти Far Manager после установки.
 
-Initial implementation scaffold. QOI decoding is implemented in its own DLL; the host discovers modules at runtime and dispatches by file signature rather than extension. The Windows/Far SDK build still needs to be run in the target MSYS2 UCRT64 environment before this should be treated as a verified release.
+## ABI декодера
+
+Кодеки экспортируют четыре функции:
+
+- `RideCodecGetInfo`
+- `RideCodecProbe`
+- `RideCodecDecode`
+- `RideCodecFreeImage`
+
+API v1 возвращает top-down RGBA8. Память изображения освобождается тем же модулем, который её выделил. Host проверяет версию ABI, наличие всех точек входа, формат пикселей, размеры, stride и объём буфера.
