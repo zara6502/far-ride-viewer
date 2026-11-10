@@ -2,7 +2,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #ifdef _WIN32
-# define RIDE_CODEC_EXPORT __declspec(dllexport)
+# ifdef RIDE_CODEC_BUILD
+#  define RIDE_CODEC_EXPORT __declspec(dllexport)
+# else
+#  define RIDE_CODEC_EXPORT __declspec(dllimport)
+# endif
 # define RIDE_CODEC_CALL __cdecl
 #else
 # define RIDE_CODEC_EXPORT
