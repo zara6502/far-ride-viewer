@@ -109,7 +109,7 @@ RideCodecDecode(const uint8_t *data, size_t size, RideImage *out,
   }
 
   if (!ok) {
-    char message[sizeof(error->message)]{};
+    char message[160]{};
     std::snprintf(message, sizeof(message),
                   "%s (stage=%u, strip=%u)",
                   error_text(decodeError.code),
