@@ -25,7 +25,7 @@ static bool read_file(const std::wstring& p,std::vector<uint8_t>& b){std::ifstre
 static std::wstring error_text(const RideCodecError& e){wchar_t b[256]{};swprintf(b,256,L"Codec error %u at byte %llu: %S",e.code,(unsigned long long)e.byte_offset,e.message);return b;}
 static HBITMAP g_view_bitmap=nullptr;
 static LRESULT CALLBACK image_window_proc(HWND w,UINT m,WPARAM wp,LPARAM lp){
- if(m==WM_PAINT){PAINTSTRUCT ps{};HDC dc=BeginPaint(w,&ps);RECT r{};GetClientRect(w,&r);if(g_view_bitmap){HDC mem=CreateCompatibleDC(dc);if(mem){auto old=SelectObject(mem,g_view_bitmap);BITMAP bm{};GetObjectW(g_view_bitmap,sizeof(bm),&bm);SetStretchBltMode(dc,HALFTONE);StretchBlt(dc,0,0,r.right,r.bottom,mem,0,0,bm.bmWidth,bm.bmHeight,SRCCOPY);SelectObject(mem,old);DeleteDC(mem);}}EndPaint(w,&ps);return 0;}
+ if(m==WM_PAINT){PAINTSTRUCT ps{};HDC dc=BeginPaint(w,&ps);RECT r{};GetClientRect(w,&r);FillRect(dc,&r,(HBRUSH)GetStockObject(BLACK_BRUSH));if(g_view_bitmap){HDC mem=CreateCompatibleDC(dc);if(mem){auto old=SelectObject(mem,g_view_bitmap);BITMAP bm{};GetObjectW(g_view_bitmap,sizeof(bm),&bm);double scale=std::min((double)r.right/bm.bmWidth,(double)r.bottom/bm.bmHeight);int dw=std::max(1,(int)(bm.bmWidth*scale));int dh=std::max(1,(int)(bm.bmHeight*scale));int x=(r.right-dw)/2,y=(r.bottom-dh)/2;SetStretchBltMode(dc,HALFTONE);StretchBlt(dc,x,y,dw,dh,mem,0,0,bm.bmWidth,bm.bmHeight,SRCCOPY);SelectObject(mem,old);DeleteDC(mem);}}EndPaint(w,&ps);return 0;}
  if(m==WM_DESTROY){PostQuitMessage(0);return 0;}
  return DefWindowProcW(w,m,wp,lp);
 }
