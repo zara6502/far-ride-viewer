@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <filesystem>
 #include <iterator>
+using std::string;
 #include "plugin.hpp"
 #include "ride_codec_api.h"
 extern "C" IMAGE_DOS_HEADER __ImageBase;
@@ -21,7 +23,7 @@ static void load_codecs(){
  if(!g_codecs.empty())return;std::wstring dir=module_dir()+L"\\Codecs";WIN32_FIND_DATAW fd{};HANDLE f=FindFirstFileW((dir+L"\\*.dll").c_str(),&fd);if(f==INVALID_HANDLE_VALUE)return;
  do{HMODULE m=LoadLibraryW((dir+L"\\"+fd.cFileName).c_str());if(!m)continue;auto gi=(RideCodecGetInfoFn)GetProcAddress(m,"RideCodecGetInfo");auto pr=(RideCodecProbeFn)GetProcAddress(m,"RideCodecProbe");auto de=(RideCodecDecodeFn)GetProcAddress(m,"RideCodecDecode");auto re=(RideCodecFreeImageFn)GetProcAddress(m,"RideCodecFreeImage");if(!gi||!pr||!de||!re){FreeLibrary(m);continue;}Codec c{};c.module=m;c.info.struct_size=sizeof(c.info);if(!gi(&c.info)||c.info.api_version!=RIDE_CODEC_API_VERSION){FreeLibrary(m);continue;}c.probe=pr;c.decode=de;c.release=re;g_codecs.push_back(c);}while(FindNextFileW(f,&fd));FindClose(f);
 }
-static bool read_file(const std::wstring& p,std::vector<uint8_t>& b){std::ifstream f(p,std::ios::binary);if(!f)return false;b.assign(std::istreambuf_iterator<char>(f),{});return !b.empty();}
+static bool read_file(const std::wstring& p,std::vector<uint8_t>& b){std::ifstream f(std::filesystem::path(p),std::ios::binary);if(!f)return false;b.assign(std::istreambuf_iterator<char>(f),{});return !b.empty();}
 static std::wstring error_text(const RideCodecError& e){wchar_t b[256]{};swprintf(b,256,L"Codec error %u at byte %llu: %S",e.code,(unsigned long long)e.byte_offset,e.message);return b;}
 static HBITMAP g_view_bitmap=nullptr;
 static LRESULT CALLBACK image_window_proc(HWND w,UINT m,WPARAM wp,LPARAM lp){
