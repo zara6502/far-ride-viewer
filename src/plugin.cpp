@@ -93,6 +93,16 @@ static std::wstring utf8_to_wide(const char *text) {
   return result;
 }
 
+template <typename Function>
+static Function get_codec_symbol(HMODULE module, const char *name) {
+  const FARPROC address = GetProcAddress(module, name);
+  Function function{};
+  static_assert(sizeof(function) == sizeof(address),
+                "Windows function pointers must have equal sizes");
+  std::memcpy(&function, &address, sizeof(function));
+  return function;
+}
+
 static void load_codecs() {
   if (g_codecsLoaded)
     return;
@@ -110,14 +120,14 @@ static void load_codecs() {
     if (!module)
       continue;
 
-    const auto getInfo = reinterpret_cast<RideCodecGetInfoFn>(
-        GetProcAddress(module, "RideCodecGetInfo"));
-    const auto probe = reinterpret_cast<RideCodecProbeFn>(
-        GetProcAddress(module, "RideCodecProbe"));
-    const auto decode = reinterpret_cast<RideCodecDecodeFn>(
-        GetProcAddress(module, "RideCodecDecode"));
-    const auto release = reinterpret_cast<RideCodecFreeImageFn>(
-        GetProcAddress(module, "RideCodecFreeImage"));
+    const auto getInfo =
+        get_codec_symbol<RideCodecGetInfoFn>(module, "RideCodecGetInfo");
+    const auto probe =
+        get_codec_symbol<RideCodecProbeFn>(module, "RideCodecProbe");
+    const auto decode =
+        get_codec_symbol<RideCodecDecodeFn>(module, "RideCodecDecode");
+    const auto release =
+        get_codec_symbol<RideCodecFreeImageFn>(module, "RideCodecFreeImage");
 
     if (!getInfo || !probe || !decode || !release) {
       FreeLibrary(module);
@@ -134,6 +144,8 @@ static void load_codecs() {
       continue;
     }
 
+    codec.info.name[sizeof(codec.info.name) - 1] = '\0';
+    codec.info.extensions[sizeof(codec.info.extensions) - 1] = '\0';
     codec.probe = probe;
     codec.decode = decode;
     codec.release = release;
@@ -416,6 +428,7 @@ static bool load_file(const wchar_t *name, ViewerImage &image,
   const uint32_t decodedOk =
       selected->decode(data.data(), data.size(), &decoded, &codecError);
   CodecImageGuard imageGuard{selected, &decoded};
+  codecError.message[sizeof(codecError.message) - 1] = '\0';
 
   if (!decodedOk) {
     error = L"Codec: " + utf8_to_wide(selected->info.name) +
