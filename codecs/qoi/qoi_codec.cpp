@@ -21,8 +21,8 @@ extern "C" uint32_t RIDE_CODEC_CALL RideCodecDecode(const uint8_t* d,size_t n,Ri
  out->pixels=nullptr;out->data_size=0;out->width=out->height=out->stride=out->pixel_format=0;
  if(!d||n<22||std::memcmp(d,"qoif",4)){fail(e,2,0,"Invalid QOI header");return 0;}
  const uint32_t w=be32(d+4),h=be32(d+8);const uint8_t channels=d[12],cs=d[13];
- if(!w||!h||w>0x7fffffffU||h>0x7fffffffU||(channels!=3&&channels!=4)||cs>1){fail(e,3,4,"Invalid QOI dimensions or header fields");return 0;}
- const uint64_t count64=uint64_t(w)*h;if(count64>SIZE_MAX/4){fail(e,4,4,"Image is too large");return 0;}
+ if(!w||!h||w>UINT32_MAX/4u||w>0x7fffffffU||h>0x7fffffffU||(channels!=3&&channels!=4)||cs>1){fail(e,3,4,"Invalid QOI dimensions or header fields");return 0;}
+ const uint64_t count64=uint64_t(w)*h;if(count64>400000000ull||count64>SIZE_MAX/4){fail(e,4,4,"Image is too large");return 0;}
  if(std::memcmp(d+n-8,"\0\0\0\0\0\0\0\1",8)){fail(e,5,n-8,"Invalid QOI end marker");return 0;}
  const size_t count=size_t(count64),bytes=count*4;uint8_t* pixels=new(std::nothrow) uint8_t[bytes];if(!pixels){fail(e,6,0,"Out of memory");return 0;}
  uint8_t index[64][4]={};uint8_t r=0,g=0,b=0,a=255;size_t p=14,run=0;const size_t end=n-8;
