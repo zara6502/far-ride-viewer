@@ -26,17 +26,17 @@ static PluginStartupInfo g_far{};
 static FarStandardFunctions g_fsf{};
 
 static const GUID PluginGuid = {
-    0x6a6d1e35,
-    0x7c7f,
-    0x4b7b,
-    {0x9f, 0x4b, 0x2e, 0x0d, 0x1d, 0x6f, 0x52, 0x91}};
+    0x9bba2c10,
+    0x2f13,
+    0x4c41,
+    {0x9a, 0x77, 0x52, 0x49, 0x44, 0x45, 0x56, 0x31}};
 
-static const GUID MenuGuid = {0x2b2c3d44,
-                              0x5e6f,
-                              0x47a1,
-                              {0x91, 0x72, 0x3a, 0x8c, 0x4d, 0x51, 0x9e, 0x20}};
+static const GUID MenuGuid = {0x9bba2c11,
+                              0x2f13,
+                              0x4c41,
+                              {0x9a, 0x77, 0x52, 0x49, 0x44, 0x45, 0x56, 0x31}};
 
-static const wchar_t *const kClassName = L"FarQoiViewerWindow";
+static const wchar_t *const kClassName = L"FarRideViewerWindow";
 enum class BackgroundMode { Checkers, Black, White };
 static constexpr UINT WM_APP_IMAGE_LOADED = WM_APP + 17;
 
@@ -1653,7 +1653,7 @@ SetStartupInfoW(const PluginStartupInfo *info) {
 }
 
 /*
-   F11 -> Plugins -> QOI Viewer
+   F11 -> Plugins -> Far Ride Viewer
 */
 
 extern "C" __declspec(dllexport) void WINAPI GetPluginInfoW(PluginInfo *info) {
@@ -1680,7 +1680,7 @@ extern "C" __declspec(dllexport) void WINAPI GetPluginInfoW(PluginInfo *info) {
   info->PluginConfig.Strings = nullptr;
   info->PluginConfig.Count = 0;
 
-  info->CommandPrefix = L"qoi";
+  info->CommandPrefix = L"ride";
 
   info->Instance = nullptr;
 }
