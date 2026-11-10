@@ -1,5 +1,5 @@
 
-#include "qoi.h"
+#include "qoi_legacy.h"
 
 #include <algorithm>
 #include <atomic>
