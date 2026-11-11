@@ -1665,7 +1665,7 @@ static bool get_find_result_filename(HANDLE dialog,
 
   for (size_t i = 0; i < selectedText.size(); ++i) {
     const wchar_t ch = selectedText[i];
-    if ((ch == L'\\x2502' || (ch >= L'\\x2500' && ch <= L'\\x257F')) &&
+    if ((ch == L'\x2502' || (ch >= L'\x2500' && ch <= L'\x257F')) &&
         i + 1 < selectedText.size()) {
       starts.push_back(i + 1);
     }
