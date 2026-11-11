@@ -4,6 +4,7 @@
 #define STBI_ONLY_TGA
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
+#define STBI_ONLY_GIF
 #define STBI_NO_STDIO
 #define STBI_FAILURE_USERMSG
 #define STBI_MAX_DIMENSIONS 32768
@@ -140,7 +141,7 @@ RideCodecGetInfo(RideCodecInfo *info) {
   value.struct_size = sizeof(value);
   value.api_version = RIDE_CODEC_API_VERSION;
   std::snprintf(value.name, sizeof(value.name), "%s", "stb_image");
-  std::snprintf(value.extensions, sizeof(value.extensions), "%s", "bmp;tga;jpg;jpeg;png");
+  std::snprintf(value.extensions, sizeof(value.extensions), "%s", "bmp;tga;jpg;jpeg;png;gif");
   *info = value;
   return 1;
 }
