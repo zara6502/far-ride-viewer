@@ -78,7 +78,7 @@ bool decode_image(const uint8_t *data, size_t size, RideImage *out,
 
   if (!get_image_info(data, size, info_width, info_height, info_channels)) {
     set_stbi_error(error, kUnsupportedImage,
-                   "Input is not a supported BMP, TGA, JPEG, or PNG image");
+                   "Input is not a supported BMP, TGA, JPEG, PNG, or GIF image");
     return false;
   }
 
@@ -110,7 +110,7 @@ bool decode_image(const uint8_t *data, size_t size, RideImage *out,
 
   if (!pixels) {
     set_stbi_error(error, kDecodeFailed,
-                   "stb_image could not decode this BMP, TGA, JPEG, or PNG image");
+                   "stb_image could not decode this BMP, TGA, JPEG, PNG, or GIF image");
     return false;
   }
 
@@ -148,7 +148,7 @@ RideCodecGetInfo(RideCodecInfo *info) {
 
 extern "C" RIDE_CODEC_EXPORT uint32_t RIDE_CODEC_CALL
 RideCodecProbe(const uint8_t *data, size_t size) {
-  // FAR probes only the first 4096 bytes. JPEG metadata may push the frame
+  // FAR probes only the first 8192 bytes. JPEG metadata may push the frame
   // header beyond that prefix, and PNG ancillary chunks (iCCP/iTXt/eXIf) may
   // push IDAT beyond it. Use each format's mandatory leading signature/header
   // for selection; the complete file is validated by RideCodecDecode.
