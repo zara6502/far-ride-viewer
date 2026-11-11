@@ -8,8 +8,8 @@
 
 - Перехват `F3` по сигнатуре содержимого; ZX Spectrum SCR определяется по точному размеру файла.
 - Независимые кодеки в DLL, расположенных в каталоге `Codecs` рядом с `FarRideViewer.dll`.
-- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG/PNG), `zx_spectrum.dll` (ZX Spectrum SCR).
-- `stb_image.dll` поддерживает JPEG baseline и progressive, а также PNG; PNG и другие форматы модуля выдаются в RGBA8 с сохранением прозрачности.
+- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG/PNG/GIF), `zx_spectrum.dll` (ZX Spectrum SCR).
+- `stb_image.dll` поддерживает BMP, TGA, JPEG baseline/progressive, PNG и GIF. Для анимированного GIF отображается только первый кадр; воспроизведение анимации не реализовано. Изображения выдаются в RGBA8 с сохранением прозрачности.
 - `zx_spectrum.dll` декодирует SCR в 256×192: 6144 байта — чёрно-белый bitmap; 6912 байт — bitmap и 768 байт атрибутов с 16-цветной палитрой. Распознавание строго по размеру, сигнатуры в файле нет.
 - 12-битный JPEG и JPEG с арифметическим кодированием не поддерживаются библиотекой stb_image.
 - Чтение файлов и декодирование в фоновом потоке.
@@ -110,3 +110,7 @@ Plugins/
 - `RideCodecFreeImage`
 
 API v1 возвращает top-down RGBA8. Память изображения освобождается тем же модулем, который её выделил. Host проверяет версию ABI, наличие всех точек входа, формат пикселей, размеры, stride и объём буфера.
+
+## Разработка
+
+План работ перед публикацией: [docs/ROADMAP.md](docs/ROADMAP.md).
