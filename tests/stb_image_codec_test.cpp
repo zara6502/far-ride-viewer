@@ -195,7 +195,7 @@ std::vector<uint8_t> make_jpeg_rgb_baseline() {
 
 std::vector<uint8_t> make_jpeg_with_large_app1() {
   // Insert an 8 KiB APP1 segment before the JPEG frame header. This models
-  // files where EXIF/metadata pushes the SOF marker beyond FAR's 4096-byte
+  // files where EXIF/metadata pushes the SOF marker beyond FAR's 8192-byte
   // signature-probe buffer. APP1 payload bytes are opaque to the JPEG decoder.
   const auto jpeg = make_jpeg_rgb_baseline();
   constexpr size_t kApp1PayloadSize = 8192u;
@@ -307,8 +307,8 @@ bool decode_png_fixture_and_check(const char *path) {
     return false;
   }
 
-  // Match FAR's host-side selection: only the first 4096 bytes are probed.
-  const size_t probe_size = data.size() < 4096u ? data.size() : 4096u;
+  // Match FAR's host-side selection: only the first 8192 bytes are probed.
+  const size_t probe_size = data.size() < 8192u ? data.size() : 8192u;
   if (!RideCodecProbe(data.data(), probe_size)) {
     std::fprintf(stderr, "PNG fixture was not recognized from its prefix: %s\n",
                  path);
@@ -533,7 +533,7 @@ int main() {
   // Valid PNG headers are recognized from the file data.
   const auto png_rgb = make_png_rgb();
   CHECK(png_rgb.size() == 72u);
-  CHECK(png_rgb.size() < 4096u);
+  CHECK(png_rgb.size() < 8192u);
   CHECK(RideCodecProbe(png_rgb.data(), png_rgb.size()));
   CHECK(decode_and_check(png_rgb, 2, 1,
                          {{220, 40, 30, 255}, {10, 200, 90, 255}},
@@ -583,7 +583,7 @@ int main() {
 
   const auto jpeg_large_app1 = make_jpeg_with_large_app1();
   CHECK(jpeg_large_app1.size() > 8192u);
-  // Match plugin.cpp: probe only the first 4096 bytes of the file.
+  // Match plugin.cpp: probe only the first 8192 bytes of the file.
   CHECK(RideCodecProbe(jpeg_large_app1.data(), 8192u));
   CHECK(decode_jpeg_and_check(jpeg_large_app1, {220, 40, 30, 255}, 8,
                               "JPEG with large APP1 metadata"));
