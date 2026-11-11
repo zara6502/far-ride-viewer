@@ -8,8 +8,9 @@
 
 - Перехват `F3` по сигнатуре содержимого, а не по расширению файла.
 - Независимые кодеки в DLL, расположенных в каталоге `Codecs` рядом с `FarRideViewer.dll`.
-- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG).
-- `stb_image.dll` поддерживает JPEG baseline и progressive; 12-битный JPEG и JPEG с арифметическим кодированием не поддерживаются библиотекой stb_image.
+- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG/PNG).
+- `stb_image.dll` поддерживает JPEG baseline и progressive, а также PNG; PNG и другие форматы модуля выдаются в RGBA8 с сохранением прозрачности.
+- 12-битный JPEG и JPEG с арифметическим кодированием не поддерживаются библиотекой stb_image.
 - Чтение файлов и декодирование в фоновом потоке.
 - Сохранение пропорций изображения.
 - Режимы вписывания в окно и 1:1.
