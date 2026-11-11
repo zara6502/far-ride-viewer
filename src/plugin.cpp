@@ -181,7 +181,13 @@ static bool probe_file(const std::wstring &path) {
   if (file == INVALID_HANDLE_VALUE)
     return false;
 
-  // Full 6144/6912-byte ZX Spectrum SCR files must reach the size-only probe intact.
+  LARGE_INTEGER fileSize{};
+  if (!GetFileSizeEx(file, &fileSize) || fileSize.QuadPart <= 0 ||
+      static_cast<unsigned long long>(fileSize.QuadPart) > SIZE_MAX) {
+    CloseHandle(file);
+    return false;
+  }
+
   uint8_t header[8192]{};
   DWORD read = 0;
   const BOOL ok = ReadFile(file, header, sizeof(header), &read, nullptr);
@@ -189,8 +195,23 @@ static bool probe_file(const std::wstring &path) {
   if (!ok || !read)
     return false;
 
+  const size_t actualSize = static_cast<size_t>(fileSize.QuadPart);
+  const bool isScrSize = actualSize == 6144u || actualSize == 6912u;
+
   for (const auto &codec : g_codecs) {
-    if (codec.probe && codec.probe(header, read))
+    if (!codec.probe)
+      continue;
+
+    // SCR has no signature; its probe uses the authoritative file size only.
+    // Keep the header buffer pointer valid, but do not rely on ReadFile's
+    // returned byte count for this size-only check.
+    if (isScrSize && std::strcmp(codec.info.extensions, "scr") == 0) {
+      if (codec.probe(header, actualSize))
+        return true;
+      continue;
+    }
+
+    if (codec.probe(header, read))
       return true;
   }
   return false;
