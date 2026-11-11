@@ -1598,6 +1598,114 @@ static bool get_current_filename(std::wstring &path) {
   return true;
 }
 
+static bool get_find_result_filename(HANDLE dialog,
+                                      std::wstring &path) {
+  if (!g_far.SendDlgMessage)
+    return false;
+
+  // FindFiles result dialog uses FD_LISTBOX == 1.
+  constexpr intptr_t kFindResultsListId = 1;
+
+  FarListPos position{};
+  position.StructSize = sizeof(position);
+  position.SelectPos = -1;
+  position.TopPos = -1;
+  g_far.SendDlgMessage(dialog, DM_LISTGETCURPOS, kFindResultsListId,
+                       &position);
+
+  if (position.SelectPos < 0)
+    return false;
+
+  const auto get_item_text = [&](intptr_t index,
+                                 std::wstring &text) -> bool {
+    FarListGetItem item{};
+    item.StructSize = sizeof(item);
+    item.ItemIndex = index;
+    if (!g_far.SendDlgMessage(dialog, DM_LISTGETITEM, kFindResultsListId,
+                              &item) ||
+        !item.Item.Text) {
+      return false;
+    }
+
+    text = item.Item.Text;
+    return true;
+  };
+
+  std::wstring selectedText;
+  if (!get_item_text(position.SelectPos, selectedText) ||
+      selectedText.empty()) {
+    return false;
+  }
+
+  // FindFiles inserts a separate directory-heading row before each group of
+  // result files. It contains the full directory path and ends in a slash.
+  std::wstring directory;
+  for (intptr_t index = position.SelectPos - 1; index >= 0; --index) {
+    std::wstring text;
+    if (!get_item_text(index, text) || text.empty())
+      continue;
+
+    if (is_absolute_windows_path(text) &&
+        (text.back() == L'\\' || text.back() == L'/')) {
+      directory = std::move(text);
+      break;
+    }
+  }
+
+  if (directory.empty())
+    return false;
+
+  // A result row is rendered as optional columns followed by the filename.
+  // Try suffixes after FAR's vertical column separators. Checking that the
+  // candidate is an existing file and that a codec recognizes it avoids
+  // interpreting the display columns as part of the filename. Trying earlier
+  // separators first also preserves filenames that themselves contain '│'.
+  std::vector<size_t> starts;
+  starts.push_back(selectedText.front() == L' ' ? 1u : 0u);
+  for (size_t i = 0; i < selectedText.size(); ++i) {
+    if (selectedText[i] == L'\\x2502' && i + 1 < selectedText.size())
+      starts.push_back(i + 1);
+  }
+  std::sort(starts.begin(), starts.end());
+  starts.erase(std::unique(starts.begin(), starts.end()), starts.end());
+
+  for (const size_t start : starts) {
+    if (start >= selectedText.size())
+      continue;
+
+    std::wstring candidate = directory;
+    candidate.append(selectedText, start, std::wstring::npos);
+
+    const DWORD attributes = GetFileAttributesW(candidate.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES ||
+        (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+      continue;
+    }
+
+    if (probe_file(candidate)) {
+      path = std::move(candidate);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static bool is_find_results_dialog(HANDLE dialog) {
+  if (!g_far.SendDlgMessage)
+    return false;
+
+  // GUID FindFileResultId from Far Manager (Alt+F7 result dialog).
+  static const GUID FindFileResultGuid = {
+      0x536754EB,  0xC2D1, 0x4626,
+      {0x93, 0x3F, 0xA2, 0x5D, 0x1E, 0x1D, 0x11, 0x0A}};
+
+  DialogInfo dialogInfo{};
+  dialogInfo.StructSize = sizeof(dialogInfo);
+  return g_far.SendDlgMessage(dialog, DM_GETDIALOGINFO, 0, &dialogInfo) &&
+         dialogInfo.Id == FindFileResultGuid;
+}
+
 static void show_error(const wchar_t *text) {
   if (!g_far.Message)
     return;
@@ -1843,6 +1951,46 @@ ProcessConsoleInputW(ProcessConsoleInputInfo *info) {
 
   show_image_file(path);
 
+  return 1;
+}
+
+extern "C" __declspec(dllexport) intptr_t WINAPI
+ProcessDialogEventW(ProcessDialogEventInfo *info) {
+  if (!info || info->StructSize < sizeof(ProcessDialogEventInfo) ||
+      info->Event != DE_DLGPROCINIT || !info->Param) {
+    return 0;
+  }
+
+  FarDialogEvent *event = info->Param;
+  if (event->StructSize < sizeof(FarDialogEvent) ||
+      event->Msg != DN_CONTROLINPUT || event->Param1 != 1 ||
+      !event->Param2 || !is_find_results_dialog(event->hDlg)) {
+    return 0;
+  }
+
+  const INPUT_RECORD *record =
+      static_cast<const INPUT_RECORD *>(event->Param2);
+  if (record->EventType != KEY_EVENT)
+    return 0;
+
+  const KEY_EVENT_RECORD &key = record->Event.KeyEvent;
+  if (!key.bKeyDown || key.wVirtualKeyCode != VK_F3)
+    return 0;
+
+  if (key.dwControlKeyState &
+      (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED | LEFT_CTRL_PRESSED |
+       RIGHT_CTRL_PRESSED | SHIFT_PRESSED)) {
+    return 0;
+  }
+
+  std::wstring path;
+  if (!get_find_result_filename(event->hDlg, path))
+    return 0;
+
+  // Let FAR handle F3 normally for files not recognized by an installed codec.
+  // get_find_result_filename already probes the candidate before returning.
+  show_image_file(path);
+  event->Result = TRUE;
   return 1;
 }
 
