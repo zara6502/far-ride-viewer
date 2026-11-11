@@ -98,9 +98,12 @@ bool parse_decimal(const uint8_t *token, size_t token_size,
     const uint8_t c = token[i];
     if (c < '0' || c > '9')
       return false;
-    parsed = parsed * 10u + uint64_t(c - '0');
-    if (parsed > std::numeric_limits<uint32_t>::max())
+    const uint64_t digit = uint64_t(c - '0');
+    if (parsed >
+        (uint64_t(std::numeric_limits<uint32_t>::max()) - digit) / 10u) {
       return false;
+    }
+    parsed = parsed * 10u + digit;
   }
 
   value = static_cast<uint32_t>(parsed);
