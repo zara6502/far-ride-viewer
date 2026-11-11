@@ -29,3 +29,12 @@ jobs:
       - name: Test
         shell: msys2 {0}
         run: ctest --test-dir build --output-on-failure
+      - name: Configure PPM codec example
+        shell: msys2 {0}
+        run: cmake -S examples/ppm_codec -B build-ppm -G Ninja -DCMAKE_BUILD_TYPE=Release -DFAR_RIDE_VIEWER_ROOT="$PWD"
+      - name: Build PPM codec example
+        shell: msys2 {0}
+        run: cmake --build build-ppm --target ppm_codec ppm_codec_test
+      - name: Test PPM codec example
+        shell: msys2 {0}
+        run: ctest --test-dir build-ppm --output-on-failure
