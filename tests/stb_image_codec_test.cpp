@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace {
@@ -33,6 +34,36 @@ void put_le32(std::vector<uint8_t> &data, size_t offset, uint32_t value) {
   data[offset + 1] = static_cast<uint8_t>(value >> 8u);
   data[offset + 2] = static_cast<uint8_t>(value >> 16u);
   data[offset + 3] = static_cast<uint8_t>(value >> 24u);
+}
+
+
+int base64_value(char c) {
+  if (c >= 'A' && c <= 'Z') return c - 'A';
+  if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+  if (c >= '0' && c <= '9') return c - '0' + 52;
+  if (c == '+') return 62;
+  if (c == '/') return 63;
+  return -1;
+}
+
+std::vector<uint8_t> decode_base64(const char *encoded) {
+  std::vector<uint8_t> decoded;
+  uint32_t bits = 0;
+  unsigned bit_count = 0;
+
+  for (const char *p = encoded; *p; ++p) {
+    if (*p == '=') break;
+    const int value = base64_value(*p);
+    if (value < 0) continue;
+
+    bits = (bits << 6u) | static_cast<uint32_t>(value);
+    bit_count += 6u;
+    if (bit_count >= 8u) {
+      bit_count -= 8u;
+      decoded.push_back(static_cast<uint8_t>((bits >> bit_count) & 0xFFu));
+    }
+  }
+  return decoded;
 }
 
 std::vector<uint8_t> make_bmp24() {
@@ -156,6 +187,25 @@ std::vector<uint8_t> make_tga8_gray() {
   return data;
 }
 
+
+std::vector<uint8_t> make_jpeg_rgb_baseline() {
+  // 4x4 solid RGB JPEG, baseline sequential, 4:4:4 sampling.
+  return decode_base64(
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAARCAAEAAQDAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD5zr+cz/Ww/9k=");
+}
+
+std::vector<uint8_t> make_jpeg_grayscale() {
+  // 4x4 grayscale JPEG.
+  return decode_base64(
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/wAALCAAEAAQBAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/ACv/2Q==");
+}
+
+std::vector<uint8_t> make_jpeg_rgb_progressive() {
+  // 4x4 solid RGB progressive JPEG.
+  return decode_base64(
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wgARCAAEAAQDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABUBAQEAAAAAAAAAAAAAAAAAAAYH/9oADAMBAAIQAxAAAAEC8n//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAn//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/AX//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/AX//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAY/An//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/IX//2gAMAwEAAgADAAAAEJ//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==");
+}
+
 bool pixel_is(const RideImage &image, uint32_t x, uint32_t y,
               Pixel expected) {
   const size_t offset = size_t(y) * image.stride + size_t(x) * 4u;
@@ -201,6 +251,47 @@ bool decode_and_check(const std::vector<uint8_t> &data,
   return ok;
 }
 
+
+bool channel_near(uint8_t actual, uint8_t expected, int tolerance) {
+  const int delta = static_cast<int>(actual) - static_cast<int>(expected);
+  return delta >= -tolerance && delta <= tolerance;
+}
+
+bool decode_jpeg_and_check(const std::vector<uint8_t> &data, Pixel expected,
+                           int tolerance, const char *name) {
+  RideCodecError error{};
+  RideImage image{};
+  image.struct_size = sizeof(image);
+
+  if (!RideCodecProbe(data.data(), data.size()) ||
+      !RideCodecDecode(data.data(), data.size(), &image, &error)) {
+    std::fprintf(stderr, "%s decode failed: %s\n", name, error.message);
+    return false;
+  }
+
+  bool ok = image.width == 4 && image.height == 4 &&
+            image.stride == 16u && image.data_size == 64u;
+  for (uint32_t y = 0; y < image.height && ok; ++y) {
+    for (uint32_t x = 0; x < image.width; ++x) {
+      const size_t offset = size_t(y) * image.stride + size_t(x) * 4u;
+      if (!channel_near(image.pixels[offset + 0], expected.r, tolerance) ||
+          !channel_near(image.pixels[offset + 1], expected.g, tolerance) ||
+          !channel_near(image.pixels[offset + 2], expected.b, tolerance) ||
+          image.pixels[offset + 3] != 255) {
+        std::fprintf(stderr, "%s pixel mismatch at (%u,%u): %u,%u,%u,%u\n",
+                     name, x, y,
+                     image.pixels[offset + 0], image.pixels[offset + 1],
+                     image.pixels[offset + 2], image.pixels[offset + 3]);
+        ok = false;
+        break;
+      }
+    }
+  }
+
+  RideCodecFreeImage(&image);
+  return ok;
+}
+
 } // namespace
 
 int main() {
@@ -210,7 +301,7 @@ int main() {
   CHECK(info.struct_size == sizeof(RideCodecInfo));
   CHECK(info.api_version == RIDE_CODEC_API_VERSION);
   CHECK(std::strcmp(info.name, "stb_image") == 0);
-  CHECK(std::strcmp(info.extensions, "bmp;tga") == 0);
+  CHECK(std::strcmp(info.extensions, "bmp;tga;jpg;jpeg") == 0);
 
   const std::vector<Pixel> four_colors = {
       {255, 0, 0, 255}, {0, 255, 0, 255},
@@ -268,6 +359,21 @@ int main() {
   };
   CHECK(!RideCodecProbe(png_signature.data(), png_signature.size()));
   CHECK(!RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
+
+  const auto jpeg_rgb = make_jpeg_rgb_baseline();
+  CHECK(jpeg_rgb.size() == 632u);
+  CHECK(decode_jpeg_and_check(jpeg_rgb, {220, 40, 30, 255}, 8,
+                              "JPEG baseline RGB"));
+
+  const auto jpeg_gray = make_jpeg_grayscale();
+  CHECK(jpeg_gray.size() == 331u);
+  CHECK(decode_jpeg_and_check(jpeg_gray, {128, 128, 128, 255}, 3,
+                              "JPEG grayscale"));
+
+  const auto jpeg_progressive = make_jpeg_rgb_progressive();
+  CHECK(jpeg_progressive.size() == 520u);
+  CHECK(decode_jpeg_and_check(jpeg_progressive, {30, 180, 70, 255}, 16,
+                              "JPEG progressive RGB"));
 
   // A truncated BMP may be recognized by its signature but must fail safely.
   std::vector<uint8_t> truncated_bmp = {'B', 'M', 0, 0, 0, 0};
