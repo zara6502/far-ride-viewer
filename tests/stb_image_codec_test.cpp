@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <string>
 #include <vector>
 
 namespace {
@@ -35,7 +34,6 @@ void put_le32(std::vector<uint8_t> &data, size_t offset, uint32_t value) {
   data[offset + 2] = static_cast<uint8_t>(value >> 16u);
   data[offset + 3] = static_cast<uint8_t>(value >> 24u);
 }
-
 
 int base64_value(char c) {
   if (c >= 'A' && c <= 'Z') return c - 'A';
@@ -187,7 +185,6 @@ std::vector<uint8_t> make_tga8_gray() {
   return data;
 }
 
-
 std::vector<uint8_t> make_jpeg_rgb_baseline() {
   // 4x4 solid RGB JPEG, baseline sequential, 4:4:4 sampling.
   return decode_base64(
@@ -251,7 +248,6 @@ bool decode_and_check(const std::vector<uint8_t> &data,
   return ok;
 }
 
-
 bool channel_near(uint8_t actual, uint8_t expected, int tolerance) {
   const int delta = static_cast<int>(actual) - static_cast<int>(expected);
   return delta >= -tolerance && delta <= tolerance;
@@ -269,8 +265,9 @@ bool decode_jpeg_and_check(const std::vector<uint8_t> &data, Pixel expected,
     return false;
   }
 
-  bool ok = image.width == 4 && image.height == 4 &&
-            image.stride == 16u && image.data_size == 64u;
+  bool ok = image.pixels != nullptr && image.width == 4 &&
+            image.height == 4 && image.stride == 16u &&
+            image.data_size == 64u;
   for (uint32_t y = 0; y < image.height && ok; ++y) {
     for (uint32_t x = 0; x < image.width; ++x) {
       const size_t offset = size_t(y) * image.stride + size_t(x) * 4u;
@@ -348,7 +345,7 @@ int main() {
                           {0xE0, 0xE0, 0xE0, 255}},
                          "TGA 8-bit grayscale"));
 
-  // This module intentionally recognizes only BMP and TGA at this stage.
+  // This module recognizes BMP, TGA, and JPEG at this stage.
   const std::vector<uint8_t> png_signature = {
       0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
       0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1
