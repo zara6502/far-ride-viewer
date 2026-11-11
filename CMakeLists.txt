@@ -62,6 +62,22 @@ set_target_properties(stb_image_codec PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
 )
 
+add_library(zx_spectrum_codec SHARED
+  codecs/zx_spectrum/zx_spectrum_codec.cpp
+)
+target_include_directories(zx_spectrum_codec PRIVATE include)
+target_compile_features(zx_spectrum_codec PRIVATE cxx_std_17)
+target_compile_definitions(zx_spectrum_codec PRIVATE RIDE_CODEC_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_options(zx_spectrum_codec PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(zx_spectrum_codec PROPERTIES
+  CXX_EXTENSIONS OFF
+  PREFIX ""
+  OUTPUT_NAME "zx_spectrum"
+  SUFFIX ".dll"
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
+  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
+)
+
 add_library(FarRideViewer SHARED
   src/plugin.cpp
   src/FarRideViewer.def
@@ -97,6 +113,7 @@ if(MINGW)
   target_link_options(qoi_codec PRIVATE -static -static-libgcc -static-libstdc++)
   target_link_options(pcx_codec PRIVATE -static -static-libgcc -static-libstdc++)
   target_link_options(stb_image_codec PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(zx_spectrum_codec PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 include(CTest)
@@ -133,4 +150,13 @@ if(BUILD_TESTING)
   set_tests_properties(stb_image_codec_test PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests"
   )
+
+  add_executable(zx_spectrum_codec_test tests/zx_spectrum_codec_test.cpp)
+  target_include_directories(zx_spectrum_codec_test PRIVATE include)
+  target_compile_features(zx_spectrum_codec_test PRIVATE cxx_std_17)
+  target_link_libraries(zx_spectrum_codec_test PRIVATE zx_spectrum_codec)
+  set_target_properties(zx_spectrum_codec_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
+  )
+  add_test(NAME zx_spectrum_codec_test COMMAND zx_spectrum_codec_test)
 endif()

@@ -157,9 +157,18 @@ static void load_codecs() {
   } while (FindNextFileW(search, &found));
 
   FindClose(search);
+
+  // Raw SCR is identified only by exact file size. Check it before heuristic
+  // headerless formats such as TGA, which may otherwise match by chance.
+  std::stable_sort(g_codecs.begin(), g_codecs.end(),
+                   [](const Codec &a, const Codec &b) {
+                     const bool a_scr = std::strcmp(a.info.extensions, "scr") == 0;
+                     const bool b_scr = std::strcmp(b.info.extensions, "scr") == 0;
+                     return a_scr && !b_scr;
+                   });
 }
 
-static bool probe_file_signature(const std::wstring &path) {
+static bool probe_file(const std::wstring &path) {
   load_codecs();
   if (g_codecs.empty())
     return false;
@@ -172,7 +181,8 @@ static bool probe_file_signature(const std::wstring &path) {
   if (file == INVALID_HANDLE_VALUE)
     return false;
 
-  uint8_t header[4096]{};
+  // Full 6144/6912-byte ZX Spectrum SCR files must reach the size-only probe intact.
+  uint8_t header[8192]{};
   DWORD read = 0;
   const BOOL ok = ReadFile(file, header, sizeof(header), &read, nullptr);
   CloseHandle(file);
@@ -418,7 +428,7 @@ static bool load_file(const wchar_t *name, ViewerImage &image,
     }
   }
   if (!selected) {
-    error = L"Stage: Codec selection\nReason: No installed codec recognizes this image signature.";
+    error = L"Stage: Codec selection\nReason: No installed codec recognizes this file.";
     return false;
   }
 
@@ -1619,7 +1629,7 @@ static bool show_image_file(const std::wstring &path) {
 
 static bool show_image_for_current_file() {
   std::wstring path;
-  if (!get_current_filename(path) || !probe_file_signature(path))
+  if (!get_current_filename(path) || !probe_file(path))
     return false;
   return show_image_file(path);
 }
@@ -1775,7 +1785,7 @@ ProcessConsoleInputW(ProcessConsoleInputInfo *info) {
   if (!get_current_filename(path))
     return 0;
 
-  if (!probe_file_signature(path))
+  if (!probe_file(path))
     return 0;
 
   show_image_file(path);

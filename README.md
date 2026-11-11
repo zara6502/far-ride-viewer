@@ -6,10 +6,11 @@
 
 ## Возможности
 
-- Перехват `F3` по сигнатуре содержимого, а не по расширению файла.
+- Перехват `F3` по сигнатуре содержимого; ZX Spectrum SCR определяется по точному размеру файла.
 - Независимые кодеки в DLL, расположенных в каталоге `Codecs` рядом с `FarRideViewer.dll`.
-- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG/PNG).
+- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA/JPEG/PNG), `zx_spectrum.dll` (ZX Spectrum SCR).
 - `stb_image.dll` поддерживает JPEG baseline и progressive, а также PNG; PNG и другие форматы модуля выдаются в RGBA8 с сохранением прозрачности.
+- `zx_spectrum.dll` декодирует SCR в 256×192: 6144 байта — чёрно-белый bitmap; 6912 байт — bitmap и 768 байт атрибутов с 16-цветной палитрой. Распознавание строго по размеру, сигнатуры в файле нет.
 - 12-битный JPEG и JPEG с арифметическим кодированием не поддерживаются библиотекой stb_image.
 - Чтение файлов и декодирование в фоновом потоке.
 - Сохранение пропорций изображения.
@@ -75,9 +76,11 @@ build/
     |-- qoi.dll
     |-- pcx.dll
     |-- stb_image.dll
+    |-- zx_spectrum.dll
     |-- qoi_codec_test.exe
     |-- pcx_codec_test.exe
-    \`-- stb_image_codec_test.exe
+    |-- stb_image_codec_test.exe
+    \`-- zx_spectrum_codec_test.exe
 ```
 
 ## Установка
@@ -91,7 +94,8 @@ Plugins/
     \`-- Codecs/
         |-- qoi.dll
         |-- pcx.dll
-        \`-- stb_image.dll
+        |-- stb_image.dll
+        \`-- zx_spectrum.dll
 ```
 
 Перезапусти Far Manager после установки.
