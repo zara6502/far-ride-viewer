@@ -3,6 +3,7 @@
 #define STBI_ONLY_BMP
 #define STBI_ONLY_TGA
 #define STBI_ONLY_JPEG
+#define STBI_ONLY_PNG
 #define STBI_NO_STDIO
 #define STBI_FAILURE_USERMSG
 #define STBI_MAX_DIMENSIONS 32768
@@ -75,7 +76,7 @@ bool decode_image(const uint8_t *data, size_t size, RideImage *out,
 
   if (!get_image_info(data, size, info_width, info_height, info_channels)) {
     set_stbi_error(error, kUnsupportedImage,
-                   "Input is not a supported BMP, TGA, or JPEG image");
+                   "Input is not a supported BMP, TGA, JPEG, or PNG image");
     return false;
   }
 
@@ -107,7 +108,7 @@ bool decode_image(const uint8_t *data, size_t size, RideImage *out,
 
   if (!pixels) {
     set_stbi_error(error, kDecodeFailed,
-                   "stb_image could not decode this BMP, TGA, or JPEG image");
+                   "stb_image could not decode this BMP, TGA, JPEG, or PNG image");
     return false;
   }
 
@@ -138,7 +139,7 @@ RideCodecGetInfo(RideCodecInfo *info) {
   value.struct_size = sizeof(value);
   value.api_version = RIDE_CODEC_API_VERSION;
   std::snprintf(value.name, sizeof(value.name), "%s", "stb_image");
-  std::snprintf(value.extensions, sizeof(value.extensions), "%s", "bmp;tga;jpg;jpeg");
+  std::snprintf(value.extensions, sizeof(value.extensions), "%s", "bmp;tga;jpg;jpeg;png");
   *info = value;
   return 1;
 }
