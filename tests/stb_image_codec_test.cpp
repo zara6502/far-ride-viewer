@@ -286,7 +286,7 @@ bool decode_and_check(const std::vector<uint8_t> &data,
 bool decode_png_fixture_and_check(const char *path) {
   std::ifstream input(path, std::ios::binary);
   if (!input) {
-    std::fprintf(stderr, "PNG fixture open failed: %s\\n", path);
+    std::fprintf(stderr, "PNG fixture open failed: %s\n", path);
     return false;
   }
 
@@ -294,7 +294,7 @@ bool decode_png_fixture_and_check(const char *path) {
       (std::istreambuf_iterator<char>(input)),
       std::istreambuf_iterator<char>());
   if (input.bad() || data.size() < 24u) {
-    std::fprintf(stderr, "PNG fixture read failed or file is too short: %s\\n",
+    std::fprintf(stderr, "PNG fixture read failed or file is too short: %s\n",
                  path);
     return false;
   }
@@ -302,7 +302,7 @@ bool decode_png_fixture_and_check(const char *path) {
   // Match FAR's host-side selection: only the first 4096 bytes are probed.
   const size_t probe_size = data.size() < 4096u ? data.size() : 4096u;
   if (!RideCodecProbe(data.data(), probe_size)) {
-    std::fprintf(stderr, "PNG fixture was not recognized from its prefix: %s\\n",
+    std::fprintf(stderr, "PNG fixture was not recognized from its prefix: %s\n",
                  path);
     return false;
   }
@@ -311,8 +311,8 @@ bool decode_png_fixture_and_check(const char *path) {
   image.struct_size = sizeof(image);
   RideCodecError error{};
   if (!RideCodecDecode(data.data(), data.size(), &image, &error)) {
-    error.message[sizeof(error.message) - 1] = '\\0';
-    std::fprintf(stderr, "PNG fixture decode failed: %s (%s)\\n",
+    error.message[sizeof(error.message) - 1] = '\0';
+    std::fprintf(stderr, "PNG fixture decode failed: %s (%s)\n",
                  path, error.message);
     return false;
   }
@@ -324,10 +324,10 @@ bool decode_png_fixture_and_check(const char *path) {
                      image.stride >= row_bytes &&
                      image.data_size >= required_bytes;
   if (!valid) {
-    std::fprintf(stderr, "PNG fixture returned invalid RGBA layout: %s\\n",
+    std::fprintf(stderr, "PNG fixture returned invalid RGBA layout: %s\n",
                  path);
   } else {
-    std::fprintf(stdout, "PNG fixture OK: %s (%ux%u, %zu bytes)\\n",
+    std::fprintf(stdout, "PNG fixture OK: %s (%ux%u, %zu bytes)\n",
                  path, image.width, image.height, data.size());
   }
 
