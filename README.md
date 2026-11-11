@@ -118,3 +118,4 @@ API v1 возвращает top-down RGBA8. Память изображения 
 - Руководство по созданию и подключению сторонних кодеков: [docs/CODEC_DEVELOPER_GUIDE.md](docs/CODEC_DEVELOPER_GUIDE.md).
 - Полный пример отдельной DLL, CMake-сборки и теста: [examples/ppm_codec/](examples/ppm_codec/).
 - План работ и проверки перед публикацией: [docs/ROADMAP.md](docs/ROADMAP.md).
+- План объединения рабочей ветки в `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
