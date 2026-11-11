@@ -146,14 +146,25 @@ RideCodecGetInfo(RideCodecInfo *info) {
 
 extern "C" RIDE_CODEC_EXPORT uint32_t RIDE_CODEC_CALL
 RideCodecProbe(const uint8_t *data, size_t size) {
-  // FAR probes only the first 4096 bytes. A JPEG may place a large APP1/EXIF
-  // segment before its frame header, so stb_image may not find the dimensions
-  // in that prefix. Use the JPEG SOI + marker as the lightweight probe;
-  // the full stream is validated by RideCodecDecode.
+  // FAR probes only the first 4096 bytes. JPEG metadata may push the frame
+  // header beyond that prefix, and PNG ancillary chunks (iCCP/iTXt/eXIf) may
+  // push IDAT beyond it. Use each format's mandatory leading signature/header
+  // for selection; the complete file is validated by RideCodecDecode.
   if (data && size >= 3 &&
       data[0] == 0xFF &&
       data[1] == 0xD8 &&
       data[2] == 0xFF) {
+    return 1u;
+  }
+
+  static constexpr uint8_t png_signature[8] = {
+      0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A
+  };
+  if (data && size >= 24 &&
+      std::memcmp(data, png_signature, sizeof(png_signature)) == 0 &&
+      data[8] == 0 && data[9] == 0 &&
+      data[10] == 0 && data[11] == 13 &&
+      std::memcmp(data + 12, "IHDR", 4) == 0) {
     return 1u;
   }
 
