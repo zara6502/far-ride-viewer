@@ -54,7 +54,7 @@ std::vector<uint8_t> make_bmp24() {
       // Top row: red, green.
       0, 0, 255,  0, 255, 0,  0, 0
   };
-  data.insert(data.end(), pixels, pixels + sizeof(pixels));
+  std::memcpy(data.data() + 54, pixels, sizeof(pixels));
   return data;
 }
 

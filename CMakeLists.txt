@@ -58,8 +58,8 @@ set_target_properties(stb_image_codec PROPERTIES
   PREFIX ""
   OUTPUT_NAME "stb_image"
   SUFFIX ".dll"
-  RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
-  LIBRARY_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
+  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
 )
 
 add_library(FarRideViewer SHARED
@@ -127,7 +127,7 @@ if(BUILD_TESTING)
   target_compile_features(stb_image_codec_test PRIVATE cxx_std_17)
   target_link_libraries(stb_image_codec_test PRIVATE stb_image_codec)
   set_target_properties(stb_image_codec_test PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
   )
   add_test(NAME stb_image_codec_test COMMAND stb_image_codec_test)
 endif()
