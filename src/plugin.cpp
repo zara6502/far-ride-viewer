@@ -1504,13 +1504,13 @@ static DWORD WINAPI viewer_thread(LPVOID param) {
 
 static bool is_absolute_windows_path(const std::wstring &value) {
   if (value.size() >= 3 && std::iswalpha(value[0]) && value[1] == L':' &&
-      (value[2] == L'\\\\' || value[2] == L'/')) {
+      (value[2] == L'\\' || value[2] == L'/')) {
     return true;
   }
 
-  // UNC and extended-length paths (\\\\server\\share, \\\\?\\C:\\...).
+  // UNC and extended-length paths (\\server\share, \\?\C:\...).
   return value.size() >= 2 &&
-         ((value[0] == L'\\\\' && value[1] == L'\\\\') ||
+         ((value[0] == L'\\' && value[1] == L'\\') ||
           (value[0] == L'/' && value[1] == L'/'));
 }
 
