@@ -1955,7 +1955,7 @@ ProcessConsoleInputW(ProcessConsoleInputInfo *info) {
 }
 
 extern "C" __declspec(dllexport) intptr_t WINAPI
-ProcessDialogEventW(ProcessDialogEventInfo *info) {
+ProcessDialogEventW(const ProcessDialogEventInfo *info) {
   if (!info || info->StructSize < sizeof(ProcessDialogEventInfo) ||
       info->Event != DE_DLGPROCINIT || !info->Param) {
     return 0;
