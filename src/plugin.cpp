@@ -1663,7 +1663,7 @@ static bool get_find_result_filename(HANDLE dialog,
   std::vector<size_t> starts;
   starts.push_back(selectedText.front() == L' ' ? 1u : 0u);
   for (size_t i = 0; i < selectedText.size(); ++i) {
-    if (selectedText[i] == L'\\x2502' && i + 1 < selectedText.size())
+    if (selectedText[i] == L'\x2502' && i + 1 < selectedText.size())
       starts.push_back(i + 1);
   }
   std::sort(starts.begin(), starts.end());
