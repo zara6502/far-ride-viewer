@@ -212,6 +212,24 @@ std::vector<uint8_t> make_jpeg_with_large_app1() {
   return data;
 }
 
+std::vector<uint8_t> make_png_rgb() {
+  // 2x1, truecolor RGB8 PNG.
+  return decode_base64(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR42mO4oyHHdSIKAAh3Ak8JX2JVAAAAAElFTkSuQmCC");
+}
+
+std::vector<uint8_t> make_png_rgba() {
+  // 2x2, truecolor RGBA8 PNG with opaque, semi-transparent, and transparent pixels.
+  return decode_base64(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP4z8DwHwgbGMA0EAAAP9cIeV/HbbEAAAAASUVORK5CYII=");
+}
+
+std::vector<uint8_t> make_png_indexed_trns() {
+  // 2x1 indexed PNG with a palette and per-entry transparency (tRNS).
+  return decode_base64(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAMAAADD/I+4AAAACVBMVEX/AAAA/wAAAP8tSs2KAAAAA3RSTlP/QAC0l782AAAAC0lEQVR42mNgYAQAAAQAAizeSK0AAAAASUVORK5CYII=");
+}
+
 std::vector<uint8_t> make_jpeg_rgb_progressive() {
   // 4x4 solid RGB progressive JPEG.
   return decode_base64(
@@ -313,7 +331,7 @@ int main() {
   CHECK(info.struct_size == sizeof(RideCodecInfo));
   CHECK(info.api_version == RIDE_CODEC_API_VERSION);
   CHECK(std::strcmp(info.name, "stb_image") == 0);
-  CHECK(std::strcmp(info.extensions, "bmp;tga;jpg;jpeg") == 0);
+  CHECK(std::strcmp(info.extensions, "bmp;tga;jpg;jpeg;png") == 0);
 
   const std::vector<Pixel> four_colors = {
       {255, 0, 0, 255}, {0, 255, 0, 255},
@@ -360,7 +378,7 @@ int main() {
                           {0xE0, 0xE0, 0xE0, 255}},
                          "TGA 8-bit grayscale"));
 
-  // This module recognizes BMP, TGA, and JPEG at this stage.
+  // This module recognizes BMP, TGA, JPEG, and PNG.
   const std::vector<uint8_t> png_signature = {
       0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
       0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1
@@ -370,6 +388,30 @@ int main() {
       0, 1, 0, 0, 1, 0, 1, 0
   };
   CHECK(!RideCodecProbe(png_signature.data(), png_signature.size()));
+  // Valid PNG headers are recognized from the file data.
+  const auto png_rgb = make_png_rgb();
+  CHECK(png_rgb.size() == 72u);
+  CHECK(png_rgb.size() < 4096u);
+  CHECK(RideCodecProbe(png_rgb.data(), png_rgb.size()));
+  CHECK(decode_and_check(png_rgb, 2, 1,
+                         {{220, 40, 30, 255}, {10, 200, 90, 255}},
+                         "PNG RGB8"));
+
+  const auto png_rgba = make_png_rgba();
+  CHECK(png_rgba.size() == 77u);
+  CHECK(RideCodecProbe(png_rgba.data(), png_rgba.size()));
+  CHECK(decode_and_check(png_rgba, 2, 2,
+                         {{255, 0, 0, 255}, {0, 255, 0, 128},
+                          {0, 0, 255, 0}, {255, 255, 255, 255}},
+                         "PNG RGBA8 alpha"));
+
+  const auto png_indexed = make_png_indexed_trns();
+  CHECK(png_indexed.size() == 104u);
+  CHECK(RideCodecProbe(png_indexed.data(), png_indexed.size()));
+  CHECK(decode_and_check(png_indexed, 2, 1,
+                         {{255, 0, 0, 255}, {0, 255, 0, 64}},
+                         "PNG indexed with tRNS"));
+
   // A short JPEG prefix is enough for host-side codec selection.
   CHECK(RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
 
