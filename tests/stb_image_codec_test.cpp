@@ -238,6 +238,14 @@ std::vector<uint8_t> make_jpeg_rgb_progressive() {
       "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wgARCAAEAAQDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABUBAQEAAAAAAAAAAAAAAAAAAAYH/9oADAMBAAIQAxAAAAEC8n//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAn//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/AX//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/AX//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAY/An//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/IX//2gAMAwEAAgADAAAAEJ//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==");
 }
 
+
+std::vector<uint8_t> make_gif_animated() {
+  // Two-frame 2x1 GIF. Frame 1 is red/green; frame 2 is blue/white.
+  // stb_image must return only the first frame.
+  return decode_base64(
+      "R0lGODlhAgABAIEAAAD/AP8AAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAAAgABAAAIBQADAAgIACH5BAEKAAIALAAAAAACAAEAgf///wAA/wAAAAAAAAgFAAMACAgAOw==");
+}
+
 bool pixel_is(const RideImage &image, uint32_t x, uint32_t y,
               Pixel expected) {
   const size_t offset = size_t(y) * image.stride + size_t(x) * 4u;
@@ -385,7 +393,7 @@ int main() {
   CHECK(info.struct_size == sizeof(RideCodecInfo));
   CHECK(info.api_version == RIDE_CODEC_API_VERSION);
   CHECK(std::strcmp(info.name, "stb_image") == 0);
-  CHECK(std::strcmp(info.extensions, "bmp;tga;jpg;jpeg;png") == 0);
+  CHECK(std::strcmp(info.extensions, "bmp;tga;jpg;jpeg;png;gif") == 0);
 
   const std::vector<Pixel> four_colors = {
       {255, 0, 0, 255}, {0, 255, 0, 255},
@@ -432,7 +440,7 @@ int main() {
                           {0xE0, 0xE0, 0xE0, 255}},
                          "TGA 8-bit grayscale"));
 
-  // This module recognizes BMP, TGA, JPEG, and PNG.
+  // This module recognizes BMP, TGA, JPEG, PNG, and GIF.
   const std::vector<uint8_t> png_signature = {
       0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
       0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1
@@ -471,6 +479,14 @@ int main() {
   CHECK(decode_png_fixture_and_check("p22.png"));
   CHECK(decode_png_fixture_and_check("p35.png"));
 
+  // Animated GIFs are previewed as a still image using their first frame.
+  const auto gif_animated = make_gif_animated();
+  CHECK(gif_animated.size() == 109u);
+  CHECK(RideCodecProbe(gif_animated.data(), gif_animated.size()));
+  CHECK(decode_and_check(gif_animated, 2, 1,
+                         {{255, 0, 0, 255}, {0, 255, 0, 255}},
+                         "Animated GIF first frame"));
+
   // A short JPEG prefix is enough for host-side codec selection.
   CHECK(RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
 
@@ -480,9 +496,9 @@ int main() {
                               "JPEG baseline RGB"));
 
   const auto jpeg_large_app1 = make_jpeg_with_large_app1();
-  CHECK(jpeg_large_app1.size() > 4096u);
+  CHECK(jpeg_large_app1.size() > 8192u);
   // Match plugin.cpp: probe only the first 4096 bytes of the file.
-  CHECK(RideCodecProbe(jpeg_large_app1.data(), 4096u));
+  CHECK(RideCodecProbe(jpeg_large_app1.data(), 8192u));
   CHECK(decode_jpeg_and_check(jpeg_large_app1, {220, 40, 30, 255}, 8,
                               "JPEG with large APP1 metadata"));
 
