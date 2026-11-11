@@ -58,6 +58,31 @@ std::vector<uint8_t> make_bmp24() {
   return data;
 }
 
+std::vector<uint8_t> make_bmp8_indexed() {
+  // 2x1, 8-bit BI_RGB with a two-entry BGRA palette.
+  std::vector<uint8_t> data(66u, 0);
+  put_le16(data, 0, 0x4D42u);
+  put_le32(data, 2, static_cast<uint32_t>(data.size()));
+  put_le32(data, 10, 62);
+  put_le32(data, 14, 40);
+  put_le32(data, 18, 2);
+  put_le32(data, 22, 1);
+  put_le16(data, 26, 1);
+  put_le16(data, 28, 8);
+  put_le32(data, 34, 4);
+  put_le32(data, 46, 2); // colors used
+
+  // Palette entries are stored as B,G,R,reserved.
+  const uint8_t palette_and_pixels[] = {
+      0, 0, 255, 0, // red
+      0, 255, 0, 0, // green
+      0, 1, 0, 0    // pixel indices and row padding
+  };
+  std::memcpy(data.data() + 54, palette_and_pixels,
+              sizeof(palette_and_pixels));
+  return data;
+}
+
 std::vector<uint8_t> make_tga_header(uint8_t image_type,
                                      uint16_t width, uint16_t height,
                                      uint8_t bits_per_pixel,
@@ -103,6 +128,19 @@ std::vector<uint8_t> make_tga24_rle() {
       255, 0, 0,       // blue
       255, 255, 255    // white
   });
+  return data;
+}
+
+std::vector<uint8_t> make_tga8_indexed() {
+  auto data = make_tga_header(1, 2, 1, 8, 0x20);
+  data[1] = 1; // color-mapped image
+  put_le16(data, 5, 2); // two palette entries
+  data[7] = 24; // 24-bit palette entries
+  data.insert(data.end(), {
+      0, 0, 255, // palette index 0: red, BGR
+      0, 255, 0  // palette index 1: green, BGR
+  });
+  data.insert(data.end(), {0, 1}); // indices
   return data;
 }
 
@@ -197,6 +235,16 @@ int main() {
   };
   const auto tga_rle = make_tga24_rle();
   CHECK(decode_and_check(tga_rle, 2, 2, rle_expected, "TGA RLE 24-bit"));
+
+  const auto bmp8 = make_bmp8_indexed();
+  CHECK(decode_and_check(bmp8, 2, 1,
+                         {{255, 0, 0, 255}, {0, 255, 0, 255}},
+                         "BMP 8-bit indexed"));
+
+  const auto tga8 = make_tga8_indexed();
+  CHECK(decode_and_check(tga8, 2, 1,
+                         {{255, 0, 0, 255}, {0, 255, 0, 255}},
+                         "TGA 8-bit indexed"));
 
   const auto tga_alpha = make_tga32_alpha();
   CHECK(decode_and_check(tga_alpha, 1, 1,
