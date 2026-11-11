@@ -191,6 +191,27 @@ std::vector<uint8_t> make_jpeg_rgb_baseline() {
       "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAARCAAEAAQDAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD5zr+cz/Ww/9k=");
 }
 
+std::vector<uint8_t> make_jpeg_with_large_app1() {
+  // Insert an 8 KiB APP1 segment before the JPEG frame header. This models
+  // files where EXIF/metadata pushes the SOF marker beyond FAR's 4096-byte
+  // signature-probe buffer. APP1 payload bytes are opaque to the JPEG decoder.
+  const auto jpeg = make_jpeg_rgb_baseline();
+  constexpr size_t kApp1PayloadSize = 8192u;
+  constexpr uint16_t kApp1SegmentLength =
+      static_cast<uint16_t>(kApp1PayloadSize + 2u);
+
+  std::vector<uint8_t> data;
+  data.reserve(jpeg.size() + kApp1PayloadSize + 4u);
+  data.insert(data.end(), jpeg.begin(), jpeg.begin() + 2); // SOI
+  data.push_back(0xFF);
+  data.push_back(0xE1); // APP1
+  data.push_back(static_cast<uint8_t>(kApp1SegmentLength >> 8u));
+  data.push_back(static_cast<uint8_t>(kApp1SegmentLength));
+  data.insert(data.end(), kApp1PayloadSize, 0xA5);
+  data.insert(data.end(), jpeg.begin() + 2, jpeg.end());
+  return data;
+}
+
 std::vector<uint8_t> make_jpeg_rgb_progressive() {
   // 4x4 solid RGB progressive JPEG.
   return decode_base64(
@@ -349,12 +370,20 @@ int main() {
       0, 1, 0, 0, 1, 0, 1, 0
   };
   CHECK(!RideCodecProbe(png_signature.data(), png_signature.size()));
-  CHECK(!RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
+  // A short JPEG prefix is enough for host-side codec selection.
+  CHECK(RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
 
   const auto jpeg_rgb = make_jpeg_rgb_baseline();
   CHECK(jpeg_rgb.size() == 632u);
   CHECK(decode_jpeg_and_check(jpeg_rgb, {220, 40, 30, 255}, 8,
                               "JPEG baseline RGB"));
+
+  const auto jpeg_large_app1 = make_jpeg_with_large_app1();
+  CHECK(jpeg_large_app1.size() > 4096u);
+  // Match plugin.cpp: probe only the first 4096 bytes of the file.
+  CHECK(RideCodecProbe(jpeg_large_app1.data(), 4096u));
+  CHECK(decode_jpeg_and_check(jpeg_large_app1, {220, 40, 30, 255}, 8,
+                              "JPEG with large APP1 metadata"));
 
   const auto jpeg_progressive = make_jpeg_rgb_progressive();
   CHECK(jpeg_progressive.size() == 520u);
