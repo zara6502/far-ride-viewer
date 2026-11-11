@@ -1655,23 +1655,29 @@ static bool get_find_result_filename(HANDLE dialog,
   if (directory.empty())
     return false;
 
-  // A result row is rendered as optional columns followed by the filename.
-  // Try suffixes after FAR's vertical column separators. Checking that the
-  // candidate is an existing file and that a codec recognizes it avoids
-  // interpreting the display columns as part of the filename. Trying earlier
-  // separators first also preserves filenames that themselves contain '│'.
+  // Result rows contain formatted columns followed by the filename.
+  // Prefer boundaries after known vertical separators, but fall back to
+  // every suffix because FAR's box-drawing characters are configurable.
   std::vector<size_t> starts;
-  starts.push_back(selectedText.front() == L' ' ? 1u : 0u);
+  starts.push_back(0);
+  if (selectedText.front() == L' ')
+    starts.push_back(1u);
+
   for (size_t i = 0; i < selectedText.size(); ++i) {
-    if (selectedText[i] == L'\x2502' && i + 1 < selectedText.size())
+    const wchar_t ch = selectedText[i];
+    if ((ch == L'\\x2502' || (ch >= L'\\x2500' && ch <= L'\\x257F')) &&
+        i + 1 < selectedText.size()) {
       starts.push_back(i + 1);
+    }
   }
+
   std::sort(starts.begin(), starts.end());
   starts.erase(std::unique(starts.begin(), starts.end()), starts.end());
 
-  for (const size_t start : starts) {
+  // First try the known display-column boundaries.
+  const auto try_candidate = [&](size_t start) -> bool {
     if (start >= selectedText.size())
-      continue;
+      return false;
 
     std::wstring candidate = directory;
     candidate.append(selectedText, start, std::wstring::npos);
@@ -1679,15 +1685,26 @@ static bool get_find_result_filename(HANDLE dialog,
     const DWORD attributes = GetFileAttributesW(candidate.c_str());
     if (attributes == INVALID_FILE_ATTRIBUTES ||
         (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-      continue;
+      return false;
     }
 
-    if (probe_file(candidate)) {
-      path = std::move(candidate);
+    if (!probe_file(candidate))
+      return false;
+
+    path = std::move(candidate);
+    return true;
+  };
+
+  for (const size_t start : starts) {
+    if (try_candidate(start))
       return true;
-    }
   }
 
+  // Fallback for custom separators / column layouts.
+  for (size_t start = selectedText.size(); start-- > 0;) {
+    if (try_candidate(start))
+      return true;
+  }
   return false;
 }
 
@@ -1963,8 +1980,8 @@ ProcessDialogEventW(const ProcessDialogEventInfo *info) {
 
   FarDialogEvent *event = info->Param;
   if (event->StructSize < sizeof(FarDialogEvent) ||
-      event->Msg != DN_CONTROLINPUT || event->Param1 != 1 ||
-      !event->Param2 || !is_find_results_dialog(event->hDlg)) {
+      event->Msg != DN_CONTROLINPUT || !event->Param2 ||
+      !is_find_results_dialog(event->hDlg)) {
     return 0;
   }
 
