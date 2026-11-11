@@ -8,7 +8,8 @@
 
 - Перехват `F3` по сигнатуре содержимого, а не по расширению файла.
 - Независимые кодеки в DLL, расположенных в каталоге `Codecs` рядом с `FarRideViewer.dll`.
-- Первый модуль `qoi.dll`: стандартный QOI и QOIMT с независимо декодируемыми полосами и многопоточной распаковкой.
+- Кодеки: `qoi.dll` (QOI/QOIMT), `pcx.dll` (PCX), `stb_image.dll` (BMP/TGA).
+- `stb_image.dll` пока ограничен BMP и TGA; остальные форматы stb_image будут подключаться отдельными этапами.
 - Чтение файлов и декодирование в фоновом потоке.
 - Сохранение пропорций изображения.
 - Режимы вписывания в окно и 1:1.
@@ -71,7 +72,11 @@ build/
 |-- FarRideViewer.dll
 \`-- Codecs/
     |-- qoi.dll
-    \`-- qoi_codec_test.exe
+    |-- pcx.dll
+    |-- stb_image.dll
+    |-- qoi_codec_test.exe
+    |-- pcx_codec_test.exe
+    \`-- stb_image_codec_test.exe
 ```
 
 ## Установка
@@ -83,7 +88,9 @@ Plugins/
 \`-- FarRideViewer/
     |-- FarRideViewer.dll
     \`-- Codecs/
-        \`-- qoi.dll
+        |-- qoi.dll
+        |-- pcx.dll
+        \`-- stb_image.dll
 ```
 
 Перезапусти Far Manager после установки.

@@ -45,6 +45,23 @@ set_target_properties(pcx_codec PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Codecs"
 )
 
+add_library(stb_image_codec SHARED
+  codecs/stb_image/stb_image_codec.cpp
+  third_party/stb/stb_image.h
+)
+target_include_directories(stb_image_codec PRIVATE include)
+target_include_directories(stb_image_codec SYSTEM PRIVATE third_party/stb)
+target_compile_features(stb_image_codec PRIVATE cxx_std_17)
+target_compile_definitions(stb_image_codec PRIVATE RIDE_CODEC_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+set_target_properties(stb_image_codec PROPERTIES
+  CXX_EXTENSIONS OFF
+  PREFIX ""
+  OUTPUT_NAME "stb_image"
+  SUFFIX ".dll"
+  RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
+  LIBRARY_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
+)
+
 add_library(FarRideViewer SHARED
   src/plugin.cpp
   src/FarRideViewer.def
@@ -79,6 +96,7 @@ set_target_properties(FarRideViewer PROPERTIES
 if(MINGW)
   target_link_options(qoi_codec PRIVATE -static -static-libgcc -static-libstdc++)
   target_link_options(pcx_codec PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(stb_image_codec PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 include(CTest)
@@ -103,4 +121,13 @@ if(BUILD_TESTING)
   set_tests_properties(pcx_codec_test PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests"
   )
+
+  add_executable(stb_image_codec_test tests/stb_image_codec_test.cpp)
+  target_include_directories(stb_image_codec_test PRIVATE include)
+  target_compile_features(stb_image_codec_test PRIVATE cxx_std_17)
+  target_link_libraries(stb_image_codec_test PRIVATE stb_image_codec)
+  set_target_properties(stb_image_codec_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/Codecs"
+  )
+  add_test(NAME stb_image_codec_test COMMAND stb_image_codec_test)
 endif()
