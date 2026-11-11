@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 namespace {
@@ -281,6 +283,58 @@ bool decode_and_check(const std::vector<uint8_t> &data,
   return ok;
 }
 
+bool decode_png_fixture_and_check(const char *path) {
+  std::ifstream input(path, std::ios::binary);
+  if (!input) {
+    std::fprintf(stderr, "PNG fixture open failed: %s\\n", path);
+    return false;
+  }
+
+  const std::vector<uint8_t> data(
+      (std::istreambuf_iterator<char>(input)),
+      std::istreambuf_iterator<char>());
+  if (input.bad() || data.size() < 24u) {
+    std::fprintf(stderr, "PNG fixture read failed or file is too short: %s\\n",
+                 path);
+    return false;
+  }
+
+  // Match FAR's host-side selection: only the first 4096 bytes are probed.
+  const size_t probe_size = data.size() < 4096u ? data.size() : 4096u;
+  if (!RideCodecProbe(data.data(), probe_size)) {
+    std::fprintf(stderr, "PNG fixture was not recognized from its prefix: %s\\n",
+                 path);
+    return false;
+  }
+
+  RideImage image{};
+  image.struct_size = sizeof(image);
+  RideCodecError error{};
+  if (!RideCodecDecode(data.data(), data.size(), &image, &error)) {
+    error.message[sizeof(error.message) - 1] = '\\0';
+    std::fprintf(stderr, "PNG fixture decode failed: %s (%s)\\n",
+                 path, error.message);
+    return false;
+  }
+
+  const uint64_t row_bytes = uint64_t(image.width) * 4u;
+  const uint64_t required_bytes = uint64_t(image.stride) * image.height;
+  const bool valid = image.pixels && image.width && image.height &&
+                     image.pixel_format == 1u &&
+                     image.stride >= row_bytes &&
+                     image.data_size >= required_bytes;
+  if (!valid) {
+    std::fprintf(stderr, "PNG fixture returned invalid RGBA layout: %s\\n",
+                 path);
+  } else {
+    std::fprintf(stdout, "PNG fixture OK: %s (%ux%u, %zu bytes)\\n",
+                 path, image.width, image.height, data.size());
+  }
+
+  RideCodecFreeImage(&image);
+  return valid;
+}
+
 bool channel_near(uint8_t actual, uint8_t expected, int tolerance) {
   const int delta = static_cast<int>(actual) - static_cast<int>(expected);
   return delta >= -tolerance && delta <= tolerance;
@@ -411,6 +465,11 @@ int main() {
   CHECK(decode_and_check(png_indexed, 2, 1,
                          {{255, 0, 0, 255}, {0, 255, 0, 64}},
                          "PNG indexed with tRNS"));
+
+  // Real-world files added to tests/ to cover ancillary metadata before IDAT.
+  CHECK(decode_png_fixture_and_check("snow-expansion.png"));
+  CHECK(decode_png_fixture_and_check("p22.png"));
+  CHECK(decode_png_fixture_and_check("p35.png"));
 
   // A short JPEG prefix is enough for host-side codec selection.
   CHECK(RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));
