@@ -1502,6 +1502,18 @@ static DWORD WINAPI viewer_thread(LPVOID param) {
    caller-provided buffer. Param1 is the buffer size.
 */
 
+static bool is_absolute_windows_path(const std::wstring &value) {
+  if (value.size() >= 3 && std::iswalpha(value[0]) && value[1] == L':' &&
+      (value[2] == L'\\\\' || value[2] == L'/')) {
+    return true;
+  }
+
+  // UNC and extended-length paths (\\\\server\\share, \\\\?\\C:\\...).
+  return value.size() >= 2 &&
+         ((value[0] == L'\\\\' && value[1] == L'\\\\') ||
+          (value[0] == L'/' && value[1] == L'/'));
+}
+
 static bool get_current_filename(std::wstring &path) {
   if (!g_far.PanelControl)
     return false;
@@ -1542,6 +1554,14 @@ static bool get_current_filename(std::wstring &path) {
   }
 
   const std::wstring filename = item.Item->FileName;
+
+  // Plugin panels such as FAR's temporary panel may return a full path in
+  // FileName and an empty CurDir. Use that path as-is instead of rejecting it
+  // or incorrectly joining it to the process current directory.
+  if (is_absolute_windows_path(filename)) {
+    path = filename;
+    return true;
+  }
 
   /*
      First ask FAR for the required directory
