@@ -343,6 +343,86 @@ bool decode_png_fixture_and_check(const char *path) {
   return valid;
 }
 
+
+bool decode_gif_fixture_and_check(const char *path,
+                                  uint32_t expected_width,
+                                  uint32_t expected_height,
+                                  uint32_t expected_transparent,
+                                  uint32_t expected_opaque) {
+  std::ifstream input(path, std::ios::binary);
+  if (!input) {
+    std::fprintf(stderr, "GIF fixture open failed: %s\\n", path);
+    return false;
+  }
+
+  const std::vector<uint8_t> data(
+      (std::istreambuf_iterator<char>(input)),
+      std::istreambuf_iterator<char>());
+  if (input.bad() || data.empty()) {
+    std::fprintf(stderr, "GIF fixture read failed: %s\\n", path);
+    return false;
+  }
+
+  // Match the host's preliminary probe: at most the first 8192 bytes.
+  const size_t probe_size = data.size() < 8192u ? data.size() : 8192u;
+  if (!RideCodecProbe(data.data(), probe_size)) {
+    std::fprintf(stderr, "GIF fixture was not recognized: %s\\n", path);
+    return false;
+  }
+
+  RideImage image{};
+  image.struct_size = sizeof(image);
+  RideCodecError error{};
+  if (!RideCodecDecode(data.data(), data.size(), &image, &error)) {
+    error.message[sizeof(error.message) - 1] = '\\0';
+    std::fprintf(stderr, "GIF fixture decode failed: %s (%s)\\n",
+                 path, error.message);
+    return false;
+  }
+
+  uint32_t transparent = 0;
+  uint32_t opaque = 0;
+  bool valid = image.pixels &&
+               image.width == expected_width &&
+               image.height == expected_height &&
+               image.pixel_format == 1u &&
+               image.stride >= image.width * 4u &&
+               image.data_size >= size_t(image.stride) * image.height;
+  if (valid) {
+    for (uint32_t y = 0; y < image.height; ++y) {
+      for (uint32_t x = 0; x < image.width; ++x) {
+        const uint8_t alpha =
+            image.pixels[size_t(y) * image.stride + size_t(x) * 4u + 3u];
+        if (alpha == 0) {
+          ++transparent;
+        } else if (alpha == 255) {
+          ++opaque;
+        } else {
+          valid = false;
+          break;
+        }
+      }
+      if (!valid) break;
+    }
+  }
+
+  valid = valid &&
+          transparent == expected_transparent &&
+          opaque == expected_opaque;
+  if (!valid) {
+    std::fprintf(stderr,
+                 "GIF fixture returned unexpected RGBA data: %s "
+                 "(%ux%u, transparent=%u, opaque=%u)\\n",
+                 path, image.width, image.height, transparent, opaque);
+  } else {
+    std::fprintf(stdout, "GIF fixture OK: %s (%ux%u)\\n",
+                 path, image.width, image.height);
+  }
+
+  RideCodecFreeImage(&image);
+  return valid;
+}
+
 bool channel_near(uint8_t actual, uint8_t expected, int tolerance) {
   const int delta = static_cast<int>(actual) - static_cast<int>(expected);
   return delta >= -tolerance && delta <= tolerance;
@@ -486,6 +566,12 @@ int main() {
   CHECK(decode_and_check(gif_animated, 2, 1,
                          {{255, 0, 0, 255}, {0, 255, 0, 255}},
                          "Animated GIF first frame"));
+
+  // Real GIF fixtures from the repository's test corpus.
+  CHECK(decode_gif_fixture_and_check("default.icon.16.gif",
+                                     16, 16, 54, 202));
+  CHECK(decode_gif_fixture_and_check("default.icon.32.gif",
+                                     32, 32, 213, 811));
 
   // A short JPEG prefix is enough for host-side codec selection.
   CHECK(RideCodecProbe(jpeg_signature.data(), jpeg_signature.size()));

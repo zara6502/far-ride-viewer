@@ -149,6 +149,7 @@ if(BUILD_TESTING)
   add_test(NAME stb_image_codec_test COMMAND stb_image_codec_test)
   set_tests_properties(stb_image_codec_test PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    TIMEOUT 15
   )
 
   add_executable(zx_spectrum_codec_test tests/zx_spectrum_codec_test.cpp)
