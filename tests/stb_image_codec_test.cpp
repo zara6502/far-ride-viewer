@@ -351,7 +351,7 @@ bool decode_gif_fixture_and_check(const char *path,
                                   uint32_t expected_opaque) {
   std::ifstream input(path, std::ios::binary);
   if (!input) {
-    std::fprintf(stderr, "GIF fixture open failed: %s\\n", path);
+    std::fprintf(stderr, "GIF fixture open failed: %s\n", path);
     return false;
   }
 
@@ -359,14 +359,14 @@ bool decode_gif_fixture_and_check(const char *path,
       (std::istreambuf_iterator<char>(input)),
       std::istreambuf_iterator<char>());
   if (input.bad() || data.empty()) {
-    std::fprintf(stderr, "GIF fixture read failed: %s\\n", path);
+    std::fprintf(stderr, "GIF fixture read failed: %s\n", path);
     return false;
   }
 
   // Match the host's preliminary probe: at most the first 8192 bytes.
   const size_t probe_size = data.size() < 8192u ? data.size() : 8192u;
   if (!RideCodecProbe(data.data(), probe_size)) {
-    std::fprintf(stderr, "GIF fixture was not recognized: %s\\n", path);
+    std::fprintf(stderr, "GIF fixture was not recognized: %s\n", path);
     return false;
   }
 
@@ -374,8 +374,8 @@ bool decode_gif_fixture_and_check(const char *path,
   image.struct_size = sizeof(image);
   RideCodecError error{};
   if (!RideCodecDecode(data.data(), data.size(), &image, &error)) {
-    error.message[sizeof(error.message) - 1] = '\\0';
-    std::fprintf(stderr, "GIF fixture decode failed: %s (%s)\\n",
+    error.message[sizeof(error.message) - 1] = '\0';
+    std::fprintf(stderr, "GIF fixture decode failed: %s (%s)\n",
                  path, error.message);
     return false;
   }
@@ -412,10 +412,10 @@ bool decode_gif_fixture_and_check(const char *path,
   if (!valid) {
     std::fprintf(stderr,
                  "GIF fixture returned unexpected RGBA data: %s "
-                 "(%ux%u, transparent=%u, opaque=%u)\\n",
+                 "(%ux%u, transparent=%u, opaque=%u)\n",
                  path, image.width, image.height, transparent, opaque);
   } else {
-    std::fprintf(stdout, "GIF fixture OK: %s (%ux%u)\\n",
+    std::fprintf(stdout, "GIF fixture OK: %s (%ux%u)\n",
                  path, image.width, image.height);
   }
 
