@@ -320,7 +320,7 @@ struct ViewerState {
   BackgroundMode background = BackgroundMode::Checkers;
 
   /*
-     QOI RGBA -> Windows BGRA.
+     RGBA8 -> Windows BGRA.
      Prepared once after loading.
   */
   std::vector<uint8_t> bgra;
@@ -578,7 +578,7 @@ static bool prepare_bgra(ViewerState &s) {
     return false;
   }
 
-  // QOI RGBA -> premultiplied BGRA для AlphaBlend.
+  // Convert RGBA8 to premultiplied BGRA for AlphaBlend.
   for (size_t i = 0; i < expectedBytes; i += 4) {
     const uint8_t r = s.image.rgba[i + 0];
     const uint8_t g = s.image.rgba[i + 1];
@@ -892,7 +892,7 @@ static void draw_image(HWND hwnd, HDC dc, ViewerState &s,
   SetStretchBltMode(dc, HALFTONE);
   SetBrushOrgEx(dc, 0, 0, nullptr);
 
-  // RGBA path: compose into an off-screen surface. The checkerboard and
+  // RGBA8 path: compose into an off-screen surface. The checkerboard and
   // alpha blend are completed in memory, then copied to the window once.
   // This prevents transparent pixels from blending with stale window pixels
   // and avoids a separate erase/clear pass that could visibly flicker.
@@ -1426,7 +1426,7 @@ static DWORD WINAPI viewer_thread(LPVOID param) {
   const int x = workArea.left + (workWidth - width) / 2;
   const int y = workArea.top + (workHeight - height) / 2;
 
-  HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, kClassName, L"QOI",
+  HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, kClassName, L"Far Ride Viewer",
                               WS_OVERLAPPEDWINDOW, x, y, width, height, nullptr,
                               nullptr, instance, state.get());
 
