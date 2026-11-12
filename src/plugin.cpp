@@ -51,7 +51,6 @@ struct Codec {
 struct ViewerImage {
   uint32_t width = 0;
   uint32_t height = 0;
-  uint8_t channels = 4;
   std::vector<uint8_t> rgba;
 };
 
@@ -540,7 +539,6 @@ static bool load_file(const wchar_t *name, ViewerImage &image,
 
   image.width = decoded.width;
   image.height = decoded.height;
-  image.channels = 4;
   for (uint32_t y = 0; y < decoded.height; ++y) {
     std::memcpy(image.rgba.data() + size_t(y) * static_cast<size_t>(rowBytes64),
                 decoded.pixels + size_t(y) * decoded.stride,
@@ -893,41 +891,6 @@ static void draw_image(HWND hwnd, HDC dc, ViewerState &s,
 
   SetStretchBltMode(dc, HALFTONE);
   SetBrushOrgEx(dc, 0, 0, nullptr);
-
-  // Keep the original main-branch path for opaque RGB QOI images.
-  if (s.image.channels != 4) {
-    HRGN paintRegion = CreateRectRgnIndirect(&paintRect);
-    HRGN imageRegion = CreateRectRgnIndirect(&imageRect);
-    HRGN backgroundRegion = CreateRectRgn(0, 0, 0, 0);
-    HRGN imagePaintRegion = CreateRectRgn(0, 0, 0, 0);
-
-    if (!paintRegion || !imageRegion || !backgroundRegion ||
-        !imagePaintRegion) {
-      if (paintRegion) DeleteObject(paintRegion);
-      if (imageRegion) DeleteObject(imageRegion);
-      if (backgroundRegion) DeleteObject(backgroundRegion);
-      if (imagePaintRegion) DeleteObject(imagePaintRegion);
-      return;
-    }
-
-    CombineRgn(backgroundRegion, paintRegion, imageRegion, RGN_DIFF);
-    CombineRgn(imagePaintRegion, paintRegion, imageRegion, RGN_AND);
-
-    SelectClipRgn(dc, backgroundRegion);
-    draw_background(dc, paintRect, s.background);
-    SelectClipRgn(dc, imagePaintRegion);
-
-    AlphaBlend(dc, imageRect.left, imageRect.top, dw, dh, s.dibDC, 0, 0,
-               static_cast<int>(s.image.width),
-               static_cast<int>(s.image.height), bf);
-
-    SelectClipRgn(dc, nullptr);
-    DeleteObject(paintRegion);
-    DeleteObject(imageRegion);
-    DeleteObject(backgroundRegion);
-    DeleteObject(imagePaintRegion);
-    return;
-  }
 
   // RGBA path: compose into an off-screen surface. The checkerboard and
   // alpha blend are completed in memory, then copied to the window once.
