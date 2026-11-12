@@ -1,0 +1,9 @@
+/build/
+/cmake-build-*/
+*.dll
+*.exe
+*.obj
+*.a
+*.lib
+
+build-ppm/
