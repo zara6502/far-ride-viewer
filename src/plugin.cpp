@@ -158,41 +158,74 @@ static void load_codecs() {
 
   FindClose(search);
 
-  // Raw SCR is identified only by exact file size. Check it before heuristic
-  // headerless formats such as TGA, which may otherwise match by chance.
-  std::stable_sort(g_codecs.begin(), g_codecs.end(),
-                   [](const Codec &a, const Codec &b) {
-                     const bool a_scr = std::strcmp(a.info.extensions, "scr") == 0;
-                     const bool b_scr = std::strcmp(b.info.extensions, "scr") == 0;
-                     return a_scr && !b_scr;
-                   });
 }
 
-static bool is_scr_path(const std::wstring &path) {
+static bool codec_supports_path_extension(const Codec &codec,
+                                          const std::wstring &path) {
   const size_t slash = path.find_last_of(L"\\/");
   const size_t dot = path.find_last_of(L'.');
   if (dot == std::wstring::npos ||
-      (slash != std::wstring::npos && dot < slash))
+      (slash != std::wstring::npos && dot < slash) || dot + 1 >= path.size())
     return false;
 
-  return CompareStringOrdinal(path.c_str() + dot, -1, L".scr", -1, TRUE) ==
-         CSTR_EQUAL;
+  const wchar_t *extension = path.c_str() + dot + 1;
+  const size_t extensionLength = path.size() - dot - 1;
+  const char *supported = codec.info.extensions;
+
+  while (supported && *supported) {
+    const char *separator = std::strchr(supported, ';');
+    const size_t supportedLength =
+        separator ? static_cast<size_t>(separator - supported)
+                  : std::strlen(supported);
+
+    if (supportedLength == extensionLength) {
+      bool matches = true;
+      for (size_t i = 0; i < extensionLength; ++i) {
+        const wchar_t supportedCharacter =
+            static_cast<wchar_t>(static_cast<unsigned char>(supported[i]));
+        if (std::towlower(extension[i]) !=
+            std::towlower(supportedCharacter)) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches)
+        return true;
+    }
+
+    if (!separator)
+      break;
+    supported = separator + 1;
+  }
+
+  return false;
+}
+
+static Codec *find_matching_codec(const std::wstring &path,
+                                  const uint8_t *data, size_t size) {
+  // A matching filename extension is a hint for prioritization only.
+  // Every selected codec must still recognize the supplied input via Probe.
+  for (auto &codec : g_codecs) {
+    if (codec.probe && codec_supports_path_extension(codec, path) &&
+        codec.probe(data, size)) {
+      return &codec;
+    }
+  }
+
+  for (auto &codec : g_codecs) {
+    if (codec.probe && !codec_supports_path_extension(codec, path) &&
+        codec.probe(data, size)) {
+      return &codec;
+    }
+  }
+
+  return nullptr;
 }
 
 static bool probe_file(const std::wstring &path) {
   load_codecs();
   if (g_codecs.empty())
     return false;
-
-  // SCR has no signature. Route .scr files to its decoder, where the
-  // authoritative 6144/6912-byte size check is performed on the full input.
-  if (is_scr_path(path)) {
-    for (const auto &codec : g_codecs) {
-      if (std::strcmp(codec.info.extensions, "scr") == 0)
-        return true;
-    }
-    return false;
-  }
 
   HANDLE file = CreateFileW(path.c_str(), GENERIC_READ,
                             FILE_SHARE_READ | FILE_SHARE_WRITE |
@@ -209,8 +242,14 @@ static bool probe_file(const std::wstring &path) {
   if (!ok || !read)
     return false;
 
+  if (find_matching_codec(path, header, read))
+    return true;
+
+  // Some formats cannot be fully identified from the initial prefix alone.
+  // Treat a declared extension as a discovery hint; full-file Probe remains
+  // mandatory in load_file before a codec can be selected.
   for (const auto &codec : g_codecs) {
-    if (codec.probe && codec.probe(header, read))
+    if (codec_supports_path_extension(codec, path))
       return true;
   }
   return false;
@@ -440,25 +479,7 @@ static bool load_file(const wchar_t *name, ViewerImage &image,
   CloseHandle(file);
 
   load_codecs();
-  Codec *selected = nullptr;
-
-  // The SCR format has no signature, so the filename extension selects its
-  // decoder. The decoder validates the complete input size (6144 or 6912).
-  if (is_scr_path(name)) {
-    for (auto &codec : g_codecs) {
-      if (std::strcmp(codec.info.extensions, "scr") == 0) {
-        selected = &codec;
-        break;
-      }
-    }
-  } else {
-    for (auto &codec : g_codecs) {
-      if (codec.probe && codec.probe(data.data(), data.size())) {
-        selected = &codec;
-        break;
-      }
-    }
-  }
+  Codec *selected = find_matching_codec(name, data.data(), data.size());
 
   if (!selected) {
     error = L"Stage: Codec selection\nReason: No installed codec recognizes this file.";
