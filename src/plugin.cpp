@@ -37,6 +37,10 @@ static const GUID MenuGuid = {0x9bba2c11,
                               {0x9a, 0x77, 0x52, 0x49, 0x44, 0x45, 0x56, 0x31}};
 
 static const wchar_t *const kClassName = L"FarRideViewerWindow";
+static constexpr uint32_t kPluginVersionMajor = 1;
+static constexpr uint32_t kPluginVersionMinor = 0;
+static constexpr uint32_t kPluginVersionRevision = 0;
+static constexpr uint32_t kPluginVersionBuild = 1;
 enum class BackgroundMode { Checkers, Black, White };
 static constexpr UINT WM_APP_IMAGE_LOADED = WM_APP + 17;
 
@@ -318,6 +322,8 @@ struct ViewerState {
 
   bool fitToWindow = true;
   BackgroundMode background = BackgroundMode::Checkers;
+  bool showInfo = false;
+  size_t infoScroll = 0;
 
   /*
      RGBA8 -> Windows BGRA.
@@ -940,6 +946,155 @@ static void draw_image(HWND hwnd, HDC dc, ViewerState &s,
   DeleteDC(memoryDC);
 }
 
+static size_t info_visible_codec_rows(const RECT &client) {
+  constexpr int kListTop = 238;
+  constexpr int kFooterHeight = 62;
+  constexpr int kRowHeight = 34;
+  const int listBottom = client.bottom - kFooterHeight;
+  if (listBottom <= kListTop)
+    return 1;
+  return std::max<size_t>(
+      1, static_cast<size_t>((listBottom - kListTop) / kRowHeight));
+}
+
+static size_t info_max_scroll(const RECT &client) {
+  const size_t visibleRows = info_visible_codec_rows(client);
+  return g_codecs.size() > visibleRows ? g_codecs.size() - visibleRows : 0;
+}
+
+static std::wstring codec_extensions_text(const char *extensions) {
+  std::wstring result = L"Extensions: ";
+  bool first = true;
+  const char *current = extensions ? extensions : "";
+
+  while (*current) {
+    const char *separator = std::strchr(current, ';');
+    const size_t length =
+        separator ? static_cast<size_t>(separator - current)
+                  : std::strlen(current);
+
+    if (length) {
+      if (!first)
+        result += L", ";
+      result += L".";
+      const std::string extension(current, length);
+      result += utf8_to_wide(extension.c_str());
+      first = false;
+    }
+
+    if (!separator)
+      break;
+    current = separator + 1;
+  }
+
+  if (first)
+    result += L"(not declared)";
+  return result;
+}
+
+static void draw_info_screen(HWND hwnd, HDC dc, const ViewerState &s) {
+  RECT client{};
+  if (!GetClientRect(hwnd, &client))
+    return;
+
+  HBRUSH background = CreateSolidBrush(RGB(35, 35, 35));
+  if (background) {
+    FillRect(dc, &client, background);
+    DeleteObject(background);
+  } else {
+    FillRect(dc, &client, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+  }
+
+  SetBkMode(dc, TRANSPARENT);
+  SetTextColor(dc, RGB(240, 240, 240));
+
+  HFONT titleFont = CreateFontW(
+      -32, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+      DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+  HFONT sectionFont = CreateFontW(
+      -21, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+      DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+  HFONT bodyFont = CreateFontW(
+      -18, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+      DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+  HGDIOBJ originalFont = GetCurrentObject(dc, OBJ_FONT);
+
+  constexpr int kMargin = 42;
+  const int textRight = std::max(kMargin + 1, client.right - kMargin);
+  auto drawLine = [&](const std::wstring &text, int top, int height) {
+    RECT rect{kMargin, top, textRight, top + height};
+    DrawTextW(dc, text.c_str(), -1, &rect,
+              DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+  };
+
+  if (titleFont)
+    SelectObject(dc, titleFont);
+  drawLine(L"Far Ride Viewer", 34, 46);
+
+  if (bodyFont)
+    SelectObject(dc, bodyFont);
+  const std::wstring pluginVersion =
+      std::to_wstring(kPluginVersionMajor) + L"." +
+      std::to_wstring(kPluginVersionMinor) + L"." +
+      std::to_wstring(kPluginVersionRevision) + L"." +
+      std::to_wstring(kPluginVersionBuild);
+  drawLine(L"Viewer version: " + pluginVersion, 104, 28);
+  drawLine(L"Codec API: v" + std::to_wstring(RIDE_CODEC_API_VERSION), 136, 28);
+
+  if (sectionFont)
+    SelectObject(dc, sectionFont);
+  drawLine(L"Registered codecs (" + std::to_wstring(g_codecs.size()) + L")",
+           190, 32);
+
+  if (bodyFont)
+    SelectObject(dc, bodyFont);
+
+  constexpr int kListTop = 238;
+  constexpr int kRowHeight = 34;
+  constexpr int kFooterHeight = 62;
+  const size_t visibleRows = info_visible_codec_rows(client);
+  const size_t offset = std::min(s.infoScroll, info_max_scroll(client));
+
+  if (g_codecs.empty()) {
+    drawLine(L"No codec DLLs were registered.", kListTop, kRowHeight);
+  } else {
+    const size_t end = std::min(g_codecs.size(), offset + visibleRows);
+    for (size_t i = offset; i < end; ++i) {
+      const std::wstring name =
+          utf8_to_wide(g_codecs[i].info.name[0] ? g_codecs[i].info.name
+                                                : "(unnamed codec)");
+      const std::wstring line =
+          L"\x2022 " + name + L"    " +
+          codec_extensions_text(g_codecs[i].info.extensions);
+      drawLine(line, kListTop + static_cast<int>(i - offset) * kRowHeight,
+               kRowHeight);
+    }
+  }
+
+  const int footerTop = std::max(0, client.bottom - 42);
+  drawLine(L"F1  Back to image     Esc  Close viewer", footerTop, 28);
+
+  if (g_codecs.size() > visibleRows) {
+    RECT scrollRect{kMargin, std::max(0, client.bottom - kFooterHeight),
+                    textRight, client.bottom - 42};
+    DrawTextW(dc, L"Up/Down or mouse wheel  Scroll codec list", -1,
+              &scrollRect,
+              DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+  }
+
+  if (originalFont)
+    SelectObject(dc, originalFont);
+  if (titleFont)
+    DeleteObject(titleFont);
+  if (sectionFont)
+    DeleteObject(sectionFont);
+  if (bodyFont)
+    DeleteObject(bodyFont);
+}
+
 static void update_title(HWND hwnd, const ViewerState &s) {
 
   if (s.loading) {
@@ -967,7 +1122,7 @@ static void update_title(HWND hwnd, const ViewerState &s) {
 
   swprintf_s(title,
              L"%s - %ux%u  %s  |  %s  |  "
-             L"1 100%%  0 fit  +/- zoom  Space/LMB switch  Esc close",
+             L"1 100%%  0 fit  +/- zoom  Space/LMB switch  F1 info  Esc close",
              s.filename.c_str(), s.image.width, s.image.height,
              L"RGBA8", mode);
 
@@ -1117,7 +1272,9 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     PAINTSTRUCT ps{};
     HDC dc = BeginPaint(hwnd, &ps);
 
-    if (s) {
+    if (s && s->showInfo) {
+      draw_info_screen(hwnd, dc, *s);
+    } else if (s) {
       draw_image(hwnd, dc, *s, ps.rcPaint);
     } else {
       FillRect(dc, &ps.rcPaint,
@@ -1151,9 +1308,22 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
 
     const int delta = GET_WHEEL_DELTA_WPARAM(wp);
-
     if (delta == 0)
       return 0;
+
+    if (s->showInfo) {
+      RECT client{};
+      GetClientRect(hwnd, &client);
+      const size_t maxScroll = info_max_scroll(client);
+      const size_t steps = static_cast<size_t>(
+          std::max(1, std::abs(delta) / WHEEL_DELTA) * 3);
+      if (delta > 0)
+        s->infoScroll = s->infoScroll > steps ? s->infoScroll - steps : 0;
+      else
+        s->infoScroll = std::min(maxScroll, s->infoScroll + steps);
+      InvalidateRect(hwnd, nullptr, FALSE);
+      return 0;
+    }
 
     const double currentScale = get_effective_scale(hwnd, *s);
 
@@ -1167,7 +1337,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   }
 
   case WM_LBUTTONDOWN: {
-    if (!s)
+    if (!s || s->showInfo)
       return 0;
 
     /*
@@ -1182,6 +1352,40 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   case WM_KEYDOWN: {
     if (!s)
       break;
+
+    if (wp == VK_F1) {
+      // Ignore keyboard auto-repeat so holding F1 cannot flicker the screen.
+      if (static_cast<unsigned long long>(lp) & (1ull << 30))
+        return 0;
+      s->showInfo = !s->showInfo;
+      s->infoScroll = 0;
+      InvalidateRect(hwnd, nullptr, FALSE);
+      return 0;
+    }
+
+    if (s->showInfo) {
+      switch (wp) {
+      case VK_ESCAPE:
+        DestroyWindow(hwnd);
+        return 0;
+      case VK_UP:
+      case VK_DOWN: {
+        RECT client{};
+        GetClientRect(hwnd, &client);
+        const size_t maxScroll = info_max_scroll(client);
+        if (wp == VK_UP) {
+          if (s->infoScroll)
+            --s->infoScroll;
+        } else {
+          s->infoScroll = std::min(maxScroll, s->infoScroll + 1);
+        }
+        InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+      }
+      default:
+        return 0;
+      }
+    }
 
     switch (wp) {
     case 'B':
@@ -1375,6 +1579,12 @@ static DWORD WINAPI viewer_thread(LPVOID param) {
   g_state = state.get();
 
   ReleaseSRWLockExclusive(&g_stateLock);
+
+  try {
+    load_codecs();
+  } catch (...) {
+    // The viewer can still display an empty/partial codec registry.
+  }
 
   WNDCLASSW wc{};
   wc.lpfnWndProc = wndproc;
@@ -1811,7 +2021,9 @@ extern "C" __declspec(dllexport) void WINAPI GetGlobalInfoW(GlobalInfo *info) {
                      FARMANAGERVERSION_REVISION, FARMANAGERVERSION_BUILD,
                      FARMANAGERVERSION_STAGE);
 
-  info->Version = MAKEFARVERSION(1, 0, 0, 1, VS_RELEASE);
+  info->Version = MAKEFARVERSION(
+      kPluginVersionMajor, kPluginVersionMinor, kPluginVersionRevision,
+      kPluginVersionBuild, VS_RELEASE);
 
   info->Guid = PluginGuid;
 
