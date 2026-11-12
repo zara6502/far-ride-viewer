@@ -1023,7 +1023,7 @@ static void draw_info_screen(HWND hwnd, HDC dc, const ViewerState &s) {
   HGDIOBJ originalFont = GetCurrentObject(dc, OBJ_FONT);
 
   constexpr int kMargin = 42;
-  const int textRight = std::max(kMargin + 1, client.right - kMargin);
+  const LONG textRight = std::max<LONG>(kMargin + 1, client.right - kMargin);
   auto drawLine = [&](const std::wstring &text, int top, int height) {
     RECT rect{kMargin, top, textRight, top + height};
     DrawTextW(dc, text.c_str(), -1, &rect,
@@ -1074,11 +1074,11 @@ static void draw_info_screen(HWND hwnd, HDC dc, const ViewerState &s) {
     }
   }
 
-  const int footerTop = std::max(0, client.bottom - 42);
+  const LONG footerTop = std::max<LONG>(0, client.bottom - 42);
   drawLine(L"F1  Back to image     Esc  Close viewer", footerTop, 28);
 
   if (g_codecs.size() > visibleRows) {
-    RECT scrollRect{kMargin, std::max(0, client.bottom - kFooterHeight),
+    RECT scrollRect{kMargin, std::max<LONG>(0, client.bottom - kFooterHeight),
                     textRight, client.bottom - 42};
     DrawTextW(dc, L"Up/Down or mouse wheel  Scroll codec list", -1,
               &scrollRect,
