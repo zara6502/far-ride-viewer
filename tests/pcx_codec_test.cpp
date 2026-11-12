@@ -125,9 +125,6 @@ int test_monochrome_fixture(const char *path,
   }
   // Real PaintBrush and independently created PCX files must decode as
   // pure monochrome regardless of the non-black/white header palette.
-  CHECK(test_monochrome_fixture("bunny.pcx", 2080, 2778) == 0);
-  CHECK(test_monochrome_fixture("2026-11-11_000052.pcx", 132, 74) == 0);
-
   return 0;
 }
 
@@ -143,6 +140,10 @@ int main() {
   CHECK(std::strcmp(info.extensions, "pcx") == 0);
 
   RideCodecError error{};
+
+  // Real PCX fixtures: both must decode as pure black-and-white images.
+  CHECK(test_monochrome_fixture("bunny.pcx", 2080, 2778) == 0);
+  CHECK(test_monochrome_fixture("2026-11-11_000052.pcx", 132, 74) == 0);
 
   // 1-bit monochrome ignores the header palette; MSB is the leftmost pixel.
   std::vector<uint8_t> mono = make_header(1, 1, 2, 1, 2);
