@@ -29,7 +29,7 @@ Include:
 
 The header defines the Windows calling convention and exports:
 
-- `RIDE_CODEC_EXPORT` — `__declspec(dllexport)` when building a codec DLL, otherwise `__declspec(dllimport`.
+- `RIDE_CODEC_EXPORT` — `__declspec(dllexport)` when building a codec DLL, otherwise `__declspec(dllimport)`.
 - `RIDE_CODEC_CALL` — `__cdecl` on Windows.
 - `RIDE_CODEC_API_VERSION` — currently `1u`.
 - `RIDE_CODEC_NAME_CAPACITY` — 64 bytes.
